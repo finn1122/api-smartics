@@ -5,7 +5,7 @@ use App\Http\Controllers\Auth\JWTAuthController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Middleware\JwtMiddleware;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\Api\V1\ShopCategory\ShopCategoryController;
 
 Route::get('/', function () {
     return response()->json([
@@ -36,6 +36,10 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         Route::prefix('user/{user_id}')->group(function () {
             Route::get('/', [UserController::class, 'getUserById']);
         });
+
+
+        // [[ SHOP CATEGORIES]]
+        Route::get('/top-categories', [ShopCategoryController::class, 'getTopShopCategories']);
 
     });
 });
