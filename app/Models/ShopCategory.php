@@ -12,6 +12,7 @@ class ShopCategory extends Model
         'name',
         'description',
         'image_url',
+        'path',
         'top',
         'active',
     ];

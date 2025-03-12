@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name')->unique();
             $table->text('description')->nullable();
             $table->string('image_url')->nullable();
+            $table->string('path');
             $table->boolean('top')->default(false);
             $table->boolean('active')->default(true);
             $table->timestamps();
