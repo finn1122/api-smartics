@@ -27,6 +27,8 @@ class ShopCategoryResource extends JsonResource
             'imageUrl' => $documentUrlService->getFullUrl($this->image_url), // Usar el servicio aquí
             'top' => $this->top,
             'active' => $this->active,
+            'productsCount' => $this->products_count, // Agregar el contador de productos
+
         ];
     }
 }

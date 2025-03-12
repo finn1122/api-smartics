@@ -22,6 +22,7 @@ class ShopCategoryController extends Controller
         // Filtrar las categorías donde top y active son true
         $shopCategories = ShopCategory::where('top', true)
             ->where('active', true)
+            ->withCount('products') // Agregar el contador de productos
             ->get();
 
         // Devolver la respuesta usando ShopCategoryResource

@@ -28,6 +28,9 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         ->middleware(['throttle:6,1'])
         ->name('verification.send');
 
+    // [[ SHOP CATEGORIES]]
+    Route::get('/top-categories', [ShopCategoryController::class, 'getTopShopCategories']);
+
     // Grupo de rutas que requieren autenticación
     Route::middleware([JwtMiddleware::class])->group(function () {
 
@@ -36,11 +39,6 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         Route::prefix('user/{user_id}')->group(function () {
             Route::get('/', [UserController::class, 'getUserById']);
         });
-
-
-        // [[ SHOP CATEGORIES]]
-        Route::get('/top-categories', [ShopCategoryController::class, 'getTopShopCategories']);
-
     });
 });
 
