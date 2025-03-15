@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class ShopCategory extends Model
 {
     protected $fillable = [
+        'id',
         'name',
         'description',
         'image_url',

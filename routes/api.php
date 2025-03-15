@@ -29,7 +29,9 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         ->name('verification.send');
 
     // [[ SHOP CATEGORIES]]
-    Route::get('/top-categories', [ShopCategoryController::class, 'getTopShopCategories']);
+    Route::get('/shop-categories/top', [ShopCategoryController::class, 'getTopShopCategories']);
+    Route::get('/shop-categories/{path}', [ShopCategoryController::class, 'getShopCategoryByPath']);
+    Route::get('/shop-categories/{category_id}/products', [ShopCategoryController::class, 'getProductsByCategory']);
 
     // Grupo de rutas que requieren autenticación
     Route::middleware([JwtMiddleware::class])->group(function () {
