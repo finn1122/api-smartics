@@ -15,26 +15,30 @@ class ShopProductResource extends JsonResource
      */
     public function toArray($request)
     {
-        $documentUrlService = app(DocumentUrlService::class);
-
-        // Obtener el precio y los datos del proveedor desde ExternalProductData
-        $externalData = $this->externalProductData->first(); // Obtener el primer registro de ExternalProductData
-        $supplier = $externalData ? $externalData->supplier : null; // Obtener el proveedor asociado
 
         return [
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
-            'price' => $externalData ? $externalData->price : null, // Precio desde ExternalProductData
-            'sale_price' => $externalData ? $externalData->sale_price : null, // Precio de venta
-            'currency_code' => $externalData ? $externalData->currency_code : null, // Código de moneda
-            'imageUrl' => $documentUrlService->getFullUrl($this->image_url),
-            'supplier' => $supplier ? [ // Datos del proveedor
-                'id' => $supplier->id,
-                'name' => $supplier->name,
-                'contact' => $supplier->contact,
-                'address' => $supplier->address,
+            'sku' => $this->sku,
+            'warranty' => $this->warranty,
+            'active' => $this->active,
+
+            // Marca del producto
+            'brand' => $this->brand ? [
+                'id' => $this->brand->id,
+                'name' => $this->brand->name,
+                'active' => $this->brand->active,
             ] : null,
+
+            // Galería de imágenes del producto
+            'gallery' => $this->whenLoaded('gallery', function () {
+                return GalleryResource::collection($this->gallery);
+            }),
+            // Proveedor con el mejor precio
+            'supplier' => $this->when(isset($this->additional['supplier']), function () {
+                return $this->additional['supplier'];
+            }),
         ];
     }
 }

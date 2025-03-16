@@ -2,20 +2,23 @@
 
 namespace App\Http\Controllers\Api\V1\ShopCategory;
 
+use App\Http\Controllers\Api\V1\ShopProduct\ShopProductController;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ShopCategoryResource;
 use App\Http\Resources\ShopProductResource;
+use App\Models\Product;
 use App\Models\ShopCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 class ShopCategoryController extends Controller
 {
-    /**
-     * Obtener las categorías donde top y active son true.
-     *
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-     */
+    private $shopProductController;
+    public function __construct(ShopProductController $shopProductController)
+    {
+        $this->shopProductController = $shopProductController;
+    }
+
     public function getTopShopCategories():JsonResponse
     {
         Log::info('getTopShopCategories');
@@ -74,29 +77,54 @@ class ShopCategoryController extends Controller
         return response()->json(new ShopCategoryResource($shopCategory), 200);
     }
     /**
-     * Obtener los productos de una categoría específica.
+     * Obtener todos los productos de una categoría, incluyendo el proveedor con el mejor precio.
      *
      * @param int $categoryId
      * @return JsonResponse
      */
     public function getProductsByCategory(int $categoryId): JsonResponse
     {
-        Log::info('getProductsByCategory', ['categoryId' => $categoryId]);
-
         // Buscar la categoría por su ID
         $category = ShopCategory::find($categoryId);
 
-        // Verificar si la categoría existe
         if (!$category) {
             return response()->json(['message' => 'Categoría no encontrada'], 404);
         }
 
-        // Obtener los productos asociados a la categoría
-        $products = $category->products;
+        // Obtener los productos de la categoría
+        $products = $category->products()->with(['gallery'])->get();
 
+        // Verificar si hay productos
+        if ($products->isEmpty()) {
+            return response()->json(['message' => 'No se encontraron productos para esta categoría'], 404);
+        }
 
+        // Iterar sobre cada producto para encontrar el proveedor con el mejor precio
+        $productsWithBestSupplier = $products->map(function ($product) {
+            // Obtener el proveedor más económico usando el método reutilizable
+            $bestSupplierResponse = $this->shopProductController->getBestSupplierForProduct($product->id);
 
-        // Devolver los productos usando ProductResource
-        return response()->json(ShopProductResource::collection($products), 200);
+            Log::debug($bestSupplierResponse);
+
+            // Si no hay datos de proveedores, continuar con valores nulos
+            if (!$bestSupplierResponse) {
+                // Crear el recurso del producto sin información del proveedor
+                $productResource = new ShopProductResource($product);
+                $productResource->additional(['supplier' => null]);
+                return $productResource;
+            }
+
+            // Decodificar la respuesta JSON para obtener los datos del proveedor
+            $bestSupplierData = json_decode($bestSupplierResponse->getContent(), true);
+
+            // Crear el recurso del producto y agregar el proveedor
+            $productResource = new ShopProductResource($product);
+            $productResource->additional(['supplier' => $bestSupplierData]);
+
+            return $productResource;
+        });
+
+        // Devolver la colección de productos con el proveedor más económico
+        return response()->json($productsWithBestSupplier, 200);
     }
 }
