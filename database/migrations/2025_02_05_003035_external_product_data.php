@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('supplier_id')->constrained()->onDelete('cascade');
             $table->decimal('price', 10, 2); // Precio ofrecido por el proveedor
             $table->decimal('sale_price', 10, 2);
+            $table->decimal('new_sale_price', 10, 2);
             $table->string('currency_code');
             $table->integer('quantity'); // Cantidad disponible en el proveedor
             $table->timestamp('consulted_at'); // Fecha y hora de la consulta

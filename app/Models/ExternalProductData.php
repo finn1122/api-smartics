@@ -14,6 +14,7 @@ class ExternalProductData extends Model
         'supplier_id',
         'price',
         'sale_price',
+        'new_sale_price',
         'currency_code',
         'quantity',
         'consulted_at',

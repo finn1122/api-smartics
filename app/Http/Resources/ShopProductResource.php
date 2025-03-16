@@ -36,8 +36,8 @@ class ShopProductResource extends JsonResource
                 return GalleryResource::collection($this->gallery);
             }),
             // Proveedor con el mejor precio
-            'supplier' => $this->when(isset($this->additional['supplier']), function () {
-                return $this->additional['supplier'];
+            'bestPrice' => $this->when(isset($this->additional['bestPrice']), function () {
+                return $this->additional['bestPrice'];
             }),
         ];
     }

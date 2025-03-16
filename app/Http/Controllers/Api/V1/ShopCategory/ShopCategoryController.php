@@ -110,7 +110,7 @@ class ShopCategoryController extends Controller
             if (!$bestSupplierResponse) {
                 // Crear el recurso del producto sin información del proveedor
                 $productResource = new ShopProductResource($product);
-                $productResource->additional(['supplier' => null]);
+                $productResource->additional(['bestPrice' => null]);
                 return $productResource;
             }
 
@@ -119,7 +119,7 @@ class ShopCategoryController extends Controller
 
             // Crear el recurso del producto y agregar el proveedor
             $productResource = new ShopProductResource($product);
-            $productResource->additional(['supplier' => $bestSupplierData]);
+            $productResource->additional(['bestPrice' => $bestSupplierData]);
 
             return $productResource;
         });

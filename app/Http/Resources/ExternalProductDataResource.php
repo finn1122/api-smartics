@@ -19,6 +19,7 @@ class ExternalProductDataResource extends JsonResource
             'productId' => $this->product_id,
             'supplierId' => $this->supplier_id,
             'salePrice' => $this->sale_price,
+            'newSalePrice' => $this->new_sale_price,
             'quantity' => $this->quantity,
         ];
     }
