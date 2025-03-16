@@ -21,14 +21,4 @@ class Gallery extends Model
     {
         return $this->belongsTo(Product::class);
     }
-
-    /**
-     * Accesor para purchase_document_url.
-     * Usa el servicio para generar la URL completa.
-     */
-    public function getImageUrlAttribute($value)
-    {
-        $documentUrlService = app(DocumentUrlService::class);
-        return $documentUrlService->getFullUrl($value);
-    }
 }
