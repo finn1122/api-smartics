@@ -127,4 +127,53 @@ class ShopCategoryController extends Controller
         // Devolver la colección de productos con el proveedor más económico
         return response()->json($productsWithBestSupplier, 200);
     }
+    /**
+     * Obtiene todas las categorías de la tienda que están activas y tienen al menos un producto.
+     *
+     * Este método filtra las categorías de la tienda que están marcadas como activas (`active = true`)
+     * y que tienen al menos un producto asociado. Luego, devuelve una respuesta JSON con las categorías
+     * filtradas, utilizando el recurso `ShopCategoryResource` para formatear la salida.
+     *
+     * @return JsonResponse
+     *
+     * @example Respuesta exitosa:
+     * [
+     *     {
+     *         "id": 1,
+     *         "name": "Sillas gamer",
+     *         "active": true,
+     *         "productsCount": 7
+     *     },
+     *     {
+     *         "id": 2,
+     *         "name": "SSDs",
+     *         "active": true,
+     *         "productsCount": 1
+     *     },
+     *     {
+     *         "id": 4,
+     *         "name": "Tendencias",
+     *         "active": true,
+     *         "productsCount": 5
+     *     }
+     * ]
+     */
+    public function getAllShopCategories(): JsonResponse
+    {
+        Log::info('getAllShopCategories');
+
+        // Paso 1: Obtener todas las categorías activas con el conteo de productos
+        $shopCategories = ShopCategory::where('active', true)
+            ->withCount('products') // Agregar el contador de productos
+            ->get();
+
+        // Paso 2: Filtrar las categorías que tienen al menos un producto
+        $filteredCategories = $shopCategories->filter(function ($category) {
+            return $category->products_count > 0; // Solo categorías con al menos un producto
+        });
+
+        // Paso 3: Devolver la respuesta usando ShopCategoryResource
+        return response()->json(ShopCategoryResource::collection($filteredCategories), 200);
+    }
+
 }

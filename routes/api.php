@@ -32,6 +32,7 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
     Route::get('/shop-categories/top', [ShopCategoryController::class, 'getTopShopCategories']);
     Route::get('/shop-categories/{path}', [ShopCategoryController::class, 'getShopCategoryByPath']);
     Route::get('/shop-categories/{category_id}/products', [ShopCategoryController::class, 'getProductsByCategory']);
+    Route::get('/shop-categories', [ShopCategoryController::class, 'getAllShopCategories']);
 
     // Grupo de rutas que requieren autenticación
     Route::middleware([JwtMiddleware::class])->group(function () {
