@@ -7,6 +7,7 @@ use App\Http\Resources\ExternalProductDataResource;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ShopProductController extends Controller
 {
@@ -18,6 +19,8 @@ class ShopProductController extends Controller
      */
     public function getBestSupplierForProduct($productId): ?JsonResponse
     {
+        Log::info('getBestSupplierForProduct: ' . $productId);
+
         // Buscar el producto por su ID
         $product = Product::find($productId);
 
@@ -32,17 +35,22 @@ class ShopProductController extends Controller
             return null; // No hay datos de proveedores
         }
 
-        // Ordenar los proveedores por precio (de menor a mayor)
-        $sortedSuppliers = $externalProductData->sortBy('price');
+        // Filtrar proveedores con price, sale_price y new_sale_price mayores a 0
+        $filteredSuppliers = $externalProductData->filter(function ($supplier) {
+            return $supplier->price > 0 &&
+                $supplier->sale_price > 0 &&
+                $supplier->new_sale_price > 0;
+        });
+
+        if ($filteredSuppliers->isEmpty()) {
+            return null; // No hay proveedores válidos
+        }
+
+        // Ordenar los proveedores filtrados por precio (de menor a mayor)
+        $sortedSuppliers = $filteredSuppliers->sortBy('price');
 
         // Buscar el primer proveedor con quantity > 0
-        $bestSupplierData = null;
-        foreach ($sortedSuppliers as $supplier) {
-            if ($supplier->quantity > 0) {
-                $bestSupplierData = $supplier;
-                break;
-            }
-        }
+        $bestSupplierData = $sortedSuppliers->firstWhere('quantity', '>', 0);
 
         // Si ningún proveedor tiene quantity > 0, seleccionar el de menor precio
         if (!$bestSupplierData) {

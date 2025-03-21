@@ -84,6 +84,8 @@ class ShopCategoryController extends Controller
      */
     public function getProductsByCategory(int $categoryId): JsonResponse
     {
+        Log::info('getProductsByCategory', ['categoryId' => $categoryId]);
+
         // Buscar la categoría por su ID
         $category = ShopCategory::find($categoryId);
 
@@ -104,14 +106,9 @@ class ShopCategoryController extends Controller
             // Obtener el proveedor más económico usando el método reutilizable
             $bestSupplierResponse = $this->shopProductController->getBestSupplierForProduct($product->id);
 
-            Log::debug($bestSupplierResponse);
-
-            // Si no hay datos de proveedores, continuar con valores nulos
+            // Si no hay datos de proveedores, retornar null
             if (!$bestSupplierResponse) {
-                // Crear el recurso del producto sin información del proveedor
-                $productResource = new ShopProductResource($product);
-                $productResource->additional(['bestPrice' => null]);
-                return $productResource;
+                return null;
             }
 
             // Decodificar la respuesta JSON para obtener los datos del proveedor
@@ -124,8 +121,18 @@ class ShopCategoryController extends Controller
             return $productResource;
         });
 
+        // Filtrar productos que no tienen un bestPrice válido
+        $filteredProducts = $productsWithBestSupplier->filter(function ($productResource) {
+            return $productResource !== null && $productResource->additional['bestPrice'] !== null;
+        });
+
+        // Verificar si hay productos después de filtrar
+        if ($filteredProducts->isEmpty()) {
+            return response()->json(['message' => 'No hay productos disponibles con precios válidos'], 404);
+        }
+
         // Devolver la colección de productos con el proveedor más económico
-        return response()->json($productsWithBestSupplier, 200);
+        return response()->json($filteredProducts->values(), 200);
     }
     /**
      * Obtiene todas las categorías de la tienda que están activas y tienen al menos un producto.
