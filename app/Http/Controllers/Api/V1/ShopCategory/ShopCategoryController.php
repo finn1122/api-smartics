@@ -169,14 +169,21 @@ class ShopCategoryController extends Controller
     {
         Log::info('getAllShopCategories');
 
-        // Paso 1: Obtener todas las categorías activas con el conteo de productos
+        // Paso 1: Obtener todas las categorías activas con el conteo de productos que tienen precios válidos
         $shopCategories = ShopCategory::where('active', true)
-            ->withCount('products') // Agregar el contador de productos
+            ->withCount(['products' => function ($query) {
+                // Subconsulta para contar solo productos con precios válidos
+                $query->whereHas('externalProductData', function ($subQuery) {
+                    $subQuery->where('price', '>', 0)
+                        ->where('sale_price', '>', 0)
+                        ->where('new_sale_price', '>', 0);
+                });
+            }])
             ->get();
 
-        // Paso 2: Filtrar las categorías que tienen al menos un producto
+        // Paso 2: Filtrar las categorías que tienen al menos un producto con precios válidos
         $filteredCategories = $shopCategories->filter(function ($category) {
-            return $category->products_count > 0; // Solo categorías con al menos un producto
+            return $category->products_count > 0; // Solo categorías con al menos un producto válido
         });
 
         // Paso 3: Devolver la respuesta usando ShopCategoryResource
