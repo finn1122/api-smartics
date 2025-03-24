@@ -9,6 +9,7 @@ use App\Http\Resources\ShopProductResource;
 use App\Models\Product;
 use App\Models\ShopCategory;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ShopCategoryController extends Controller
@@ -188,6 +189,70 @@ class ShopCategoryController extends Controller
 
         // Paso 3: Devolver la respuesta usando ShopCategoryResource
         return response()->json(ShopCategoryResource::collection($filteredCategories), 200);
+    }
+    public function searchProducts(Request $request): JsonResponse
+    {
+        Log::info('searchProducts');
+        Log::debug($request);
+        $request->validate([
+            'path' => 'required|string|exists:shop_categories,path',
+            'search_term' => 'nullable|string|min:2'
+        ]);
+
+        // Obtener la categoría por su path
+        $category = ShopCategory::where('path', $request->path)->first();
+
+        if (!$category) {
+            return response()->json(['message' => 'Categoría no encontrada'], 404);
+        }
+
+        $searchTerm = $request->input('search_term');
+
+        // Base query con join a la tabla pivote
+        $query = Product::query()
+            ->with(['gallery'])
+            ->join('shop_category_products', 'products.id', '=', 'shop_category_products.product_id')
+            ->where('shop_category_products.category_id', $category->id)
+            ->select('products.*');
+
+        // Filtrar por término de búsqueda
+        if ($searchTerm) {
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('sku', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('cva_key', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Obtener productos
+        $products = $query->get();
+
+        // Procesar para obtener mejor proveedor
+        $productsWithBestSupplier = $products->map(function ($product) {
+            $bestSupplierResponse = $this->shopProductController->getBestSupplierForProduct($product->id);
+
+            if (!$bestSupplierResponse) {
+                return null;
+            }
+
+            $bestSupplierData = json_decode($bestSupplierResponse->getContent(), true);
+            $productResource = new ShopProductResource($product);
+            $productResource->additional(['bestPrice' => $bestSupplierData]);
+
+            return $productResource;
+        });
+
+        $filteredProducts = $productsWithBestSupplier->filter()->values();
+
+        return response()->json([
+            'data' => $filteredProducts,
+            'meta' => [
+                'total' => $filteredProducts->count(),
+                'category_id' => $category->id,
+                'category_path' => $category->path,
+                'search_term' => $searchTerm
+            ]
+        ]);
     }
 
 }
