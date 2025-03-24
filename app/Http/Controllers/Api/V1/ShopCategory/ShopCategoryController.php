@@ -190,33 +190,106 @@ class ShopCategoryController extends Controller
         // Paso 3: Devolver la respuesta usando ShopCategoryResource
         return response()->json(ShopCategoryResource::collection($filteredCategories), 200);
     }
+    /**
+     * Busca productos por categoría (path), término de búsqueda o ambos.
+     *
+     * @OA\Get(
+     *     path="/shop-categories/products/search",
+     *     tags={"Productos"},
+     *     summary="Buscar productos",
+     *     description="Permite buscar productos por categoría, término de búsqueda o ambos criterios combinados",
+     *     @OA\Parameter(
+     *         name="path",
+     *         in="query",
+     *         description="Path único de la categoría (ej: 'sillas-gamer')",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="search_term",
+     *         in="query",
+     *         description="Término para buscar en nombre, SKU o clave CVA",
+     *         required=false,
+     *         @OA\Schema(type="string", minLength=2)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Listado de productos encontrados",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(ref="#/components/schemas/ProductResource")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Se requiere al menos un parámetro",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Se requiere al menos un parámetro (path o search_term)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Categoría no encontrada",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Categoría no encontrada")
+     *         )
+     *     )
+     * )
+     *
+     * @param Request $request
+     * @return JsonResponse
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Si la categoría no existe
+     * @throws \Exception Si ocurre un error inesperado
+     *
+     * Ejemplos de uso:
+     * 1. Búsqueda por categoría: GET /shop-categories/products/search?path=sillas-gamer
+     * 2. Búsqueda por término: GET /shop-categories/products/search?search_term=teclado
+     * 3. Búsqueda combinada: GET /shop-categories/products/search?path=sillas-gamer&search_term=ergonómica
+     *
+     * Estructura de respuesta exitosa:
+     * [
+     *    {
+     *        "id": 1,
+     *        "name": "Producto Ejemplo",
+     *        // ... otros campos del producto
+     *        "bestPrice": {
+     *            "supplierId": 5,
+     *            "price": 99.99
+     *            // ... datos del proveedor
+     *        }
+     *    }
+     * ]
+     */
     public function searchProducts(Request $request): JsonResponse
     {
         Log::info('searchProducts');
         Log::debug($request);
+
         $request->validate([
-            'path' => 'required|string|exists:shop_categories,path',
+            'path' => 'nullable|string|exists:shop_categories,path',
             'search_term' => 'nullable|string|min:2'
         ]);
 
-        // Obtener la categoría por su path
-        $category = ShopCategory::where('path', $request->path)->first();
-
-        if (!$category) {
-            return response()->json(['message' => 'Categoría no encontrada'], 404);
+        // Validar que al menos un parámetro esté presente
+        if (!$request->path && !$request->search_term) {
+            return response()->json(['message' => 'Se requiere al menos un parámetro (path o search_term)'], 400);
         }
 
-        $searchTerm = $request->input('search_term');
+        // Iniciar query
+        $query = Product::query()->with(['gallery']);
 
-        // Base query con join a la tabla pivote
-        $query = Product::query()
-            ->with(['gallery'])
-            ->join('shop_category_products', 'products.id', '=', 'shop_category_products.product_id')
-            ->where('shop_category_products.category_id', $category->id)
-            ->select('products.*');
+        // Filtrar por categoría si existe
+        if ($request->path) {
+            $category = ShopCategory::where('path', $request->path)->firstOrFail();
 
-        // Filtrar por término de búsqueda
-        if ($searchTerm) {
+            $query->join('shop_category_products', 'products.id', '=', 'shop_category_products.product_id')
+                ->where('shop_category_products.category_id', $category->id);
+        }
+
+        // Filtrar por término de búsqueda si existe
+        if ($request->search_term) {
+            $searchTerm = $request->input('search_term');
             $query->where(function($q) use ($searchTerm) {
                 $q->where('name', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('sku', 'LIKE', "%{$searchTerm}%")
@@ -224,10 +297,9 @@ class ShopCategoryController extends Controller
             });
         }
 
-        // Obtener productos
+        // Obtener y procesar productos
         $products = $query->get();
 
-        // Procesar para obtener mejor proveedor
         $productsWithBestSupplier = $products->map(function ($product) {
             $bestSupplierResponse = $this->shopProductController->getBestSupplierForProduct($product->id);
 
@@ -236,23 +308,11 @@ class ShopCategoryController extends Controller
             }
 
             $bestSupplierData = json_decode($bestSupplierResponse->getContent(), true);
-            $productResource = new ShopProductResource($product);
-            $productResource->additional(['bestPrice' => $bestSupplierData]);
-
-            return $productResource;
+            return (new ShopProductResource($product))->additional(['bestPrice' => $bestSupplierData]);
         });
 
         $filteredProducts = $productsWithBestSupplier->filter()->values();
 
-        return response()->json([
-            'data' => $filteredProducts,
-            'meta' => [
-                'total' => $filteredProducts->count(),
-                'category_id' => $category->id,
-                'category_path' => $category->path,
-                'search_term' => $searchTerm
-            ]
-        ]);
+        return response()->json($filteredProducts, 200);
     }
-
 }
