@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Middleware\JwtMiddleware;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\ShopCategory\ShopCategoryController;
+use App\Http\Controllers\Api\V1\Slider\SliderController;
 
 Route::get('/', function () {
     return response()->json([
@@ -34,6 +35,12 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
     Route::get('/shop-categories/{category_id}/products', [ShopCategoryController::class, 'getProductsByCategory']);
     Route::get('/shop-categories', [ShopCategoryController::class, 'getAllShopCategories']);
     Route::get('/shop-categories/products/search', [ShopCategoryController::class, 'searchProducts']);
+
+    Route::prefix('sliders')->group(function () {
+        Route::get('/', [SliderController::class, 'getAllActiveSliders']);
+    });
+
+
     // Grupo de rutas que requieren autenticación
     Route::middleware([JwtMiddleware::class])->group(function () {
 
