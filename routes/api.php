@@ -7,6 +7,8 @@ use App\Http\Middleware\JwtMiddleware;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\ShopCategory\ShopCategoryController;
 use App\Http\Controllers\Api\V1\Slider\SliderController;
+use App\Http\Controllers\Api\V1\Tag\TagProductController;
+use App\Http\Controllers\Api\V1\Tag\TagController;
 
 Route::get('/', function () {
     return response()->json([
@@ -30,14 +32,22 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         ->name('verification.send');
 
     // [[ SHOP CATEGORIES]]
-    Route::get('/shop-categories/top', [ShopCategoryController::class, 'getTopShopCategories']);
-    Route::get('/shop-categories/{path}', [ShopCategoryController::class, 'getShopCategoryByPath']);
-    Route::get('/shop-categories/{category_id}/products', [ShopCategoryController::class, 'getProductsByCategory']);
-    Route::get('/shop-categories', [ShopCategoryController::class, 'getAllShopCategories']);
-    Route::get('/shop-categories/products/search', [ShopCategoryController::class, 'searchProducts']);
+    Route::prefix('shop-categories/')->group(function () {
+        Route::get('top', [ShopCategoryController::class, 'getTopShopCategories']);
+        Route::get('{path}', [ShopCategoryController::class, 'getShopCategoryByPath']);
+        Route::get('{category_id}/products', [ShopCategoryController::class, 'getProductsByCategory']);
+        Route::get('/', [ShopCategoryController::class, 'getAllShopCategories']);
+        Route::get('products/search', [ShopCategoryController::class, 'searchProducts']);
+    });
+
+    Route::prefix('tags')->group(function () {
+        Route::get('{tagId}/products', [TagProductController::class, 'getProductsByTag']);
+        Route::get('/', [TagController::class, 'getActiveTagsWithValidProductsCount']);
+    });
 
     Route::prefix('sliders')->group(function () {
         Route::get('/', [SliderController::class, 'getAllActiveSliders']);
+
     });
 
 
