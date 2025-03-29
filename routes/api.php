@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\ShopCategory\ShopCategoryController;
 use App\Http\Controllers\Api\V1\Slider\SliderController;
 use App\Http\Controllers\Api\V1\Tag\TagProductController;
 use App\Http\Controllers\Api\V1\Tag\TagController;
+use App\Http\Controllers\Api\V1\Category\CategoryController;
 
 Route::get('/', function () {
     return response()->json([
@@ -38,6 +39,16 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         Route::get('{category_id}/products', [ShopCategoryController::class, 'getProductsByCategory']);
         Route::get('/', [ShopCategoryController::class, 'getAllShopCategories']);
         Route::get('products/search', [ShopCategoryController::class, 'searchProducts']);
+    });
+
+    // [[ CATEGORIES ]]
+    Route::prefix('categories')->group(function() {
+        Route::get('/', [CategoryController::class, 'getCategoriesHierarchy']);
+        Route::get('/top', [CategoryController::class, 'getTopCategories']);
+        Route::get('/{categoryId}/subcategories', [CategoryController::class, 'getSubcategories']);
+        Route::get('/by-path/{path}', [CategoryController::class, 'getCategoryByPath']);
+        Route::get('{categoryId}/products', [CategoryController::class, 'getProductsByCategoryId']);
+
     });
 
     Route::prefix('tags')->group(function () {

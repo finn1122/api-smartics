@@ -15,7 +15,6 @@ class Product extends Model
         'sku',
         'warranty',
         'brand_id',
-        'group_id',
         'product_type',
         'active',
     ];
@@ -66,4 +65,16 @@ class Product extends Model
         return $this->belongsToMany(Tag::class, 'product_tags');
     }
 
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class);
+    }
+
+    // Obtener la ruta completa del producto
+    public function getProductPath()
+    {
+        // Obtener la categoría más específica del producto
+        $category = $this->categories()->orderBy('parent_id', 'desc')->first(); // Tomar la categoría con el parent_id más alto
+        return $category ? $category->getFullPath() . '/' . $this->name : $this->name;
+    }
 }

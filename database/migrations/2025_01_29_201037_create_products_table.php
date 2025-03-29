@@ -18,13 +18,11 @@ return new class extends Migration
             $table->string('sku')->unique();    // SKU (código único del producto)
             $table->string('warranty')->nullable();
             $table->unsignedBigInteger('brand_id')->nullable();  // Relación con la marca
-            $table->unsignedBigInteger('group_id')->nullable();
             $table->boolean('active')->default(true);
             $table->timestamps();
 
             // Relación de claves foráneas
             $table->foreign('brand_id')->references('id')->on('brands')->onDelete('set null');
-            $table->foreign('group_id')->references('id')->on('groups')->onDelete('set null');
         });
     }
 
