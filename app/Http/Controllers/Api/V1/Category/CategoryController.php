@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CategoryController extends Controller
@@ -80,67 +81,33 @@ class CategoryController extends Controller
             return $this->categoryHasValidProducts($category);
         });
 
-        return response()->json(CategoryResource::collection($filteredCategories));
+        return response()->json($filteredCategories);
     }
-    /**
-     * Obtiene todas las categorías principales (raíz) con sus subcategorías anidadas
-     * que están activas y tienen al menos un producto con precios válidos.
-     *
-     * @return JsonResponse
-     *
-     * @example Respuesta exitosa:
-     * [
-     *     {
-     *         "id": 1,
-     *         "name": "Electrónica",
-     *         "children": [
-     *             {
-     *                 "id": 2,
-     *                 "name": "Computadoras",
-     *                 "children": [
-     *                     {
-     *                         "id": 3,
-     *                         "name": "Laptops",
-     *                         "products_count": 15
-     *                     }
-     *                 ],
-     *                 "products_count": 15
-     *             }
-     *         ],
-     *         "products_count": 30
-     *     }
-     * ]
-     */
     public function getCategoriesHierarchy(): JsonResponse
     {
-        Log::info('getCategoriesHierarchy');
+        // Obtener todas las categorías principales (sin padre)
+        $categories = Category::whereNull('parent_id')->get();
 
-        // Obtener categorías raíz con sus descendientes
-        $rootCategories = Category::with(['descendants' => function($query) {
-            $query->withCount(['products' => function($productQuery) {
-                $productQuery->whereHas('externalProductData', function($externalQuery) {
-                    $externalQuery->where('price', '>', 0)
-                        ->where('sale_price', '>', 0)
-                        ->where('new_sale_price', '>', 0);
-                });
-            }]);
-        }])
-            ->whereIsRoot()
-            ->withCount(['products' => function($query) {
-                $query->whereHas('externalProductData', function($subQuery) {
-                    $subQuery->where('price', '>', 0)
-                        ->where('sale_price', '>', 0)
-                        ->where('new_sale_price', '>', 0);
-                });
-            }])
-            ->get();
-
-        // Filtrar categorías que tienen productos o descendientes con productos
-        $filteredCategories = $rootCategories->filter(function($category) {
-            return $this->categoryHasValidProducts($category);
+        // Recursivamente cargar los hijos de cada categoría
+        $tree = $categories->map(function($category) {
+            return $this->buildCompleteTree($category);
         });
 
-        return response()->json(CategoryResource::collection($filteredCategories));
+        // Pasar el árbol ya completo al recurso para ser serializado
+        return response()->json(CategoryResource::collection($tree));
+    }
+
+    private function buildCompleteTree($category)
+    {
+        // Obtener los hijos directos de la categoría
+        $category->children = $category->children;
+
+        // Recursivamente cargar los hijos de los hijos
+        foreach ($category->children as $child) {
+            $child->children = $this->buildCompleteTree($child)->children;
+        }
+
+        return $category;
     }
 
     /**

@@ -32,15 +32,6 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         ->middleware(['throttle:6,1'])
         ->name('verification.send');
 
-    // [[ SHOP CATEGORIES]]
-    Route::prefix('shop-categories/')->group(function () {
-        Route::get('top', [ShopCategoryController::class, 'getTopShopCategories']);
-        Route::get('{path}', [ShopCategoryController::class, 'getShopCategoryByPath']);
-        Route::get('{category_id}/products', [ShopCategoryController::class, 'getProductsByCategory']);
-        Route::get('/', [ShopCategoryController::class, 'getAllShopCategories']);
-        Route::get('products/search', [ShopCategoryController::class, 'searchProducts']);
-    });
-
     // [[ CATEGORIES ]]
     Route::prefix('categories')->group(function() {
         Route::get('/', [CategoryController::class, 'getCategoriesHierarchy']);

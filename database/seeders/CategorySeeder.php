@@ -18,18 +18,18 @@ class CategorySeeder extends Seeder
         $perifericos = Category::create(['name' => 'Periféricos']);
 
         // Crear subcategorías para Audio
-        $auriculares = $audio->children()->create(['name' => 'Auriculares']);
-        $almbricos = $auriculares->children()->create(['name' => 'Alámbricos']);
-        $inalambricos = $auriculares->children()->create(['name' => 'Inalámbricos']);
+        $auriculares = Category::create(['name' => 'Auriculares', 'parent_id' => $audio->id]);
+        $almbricos = Category::create(['name' => 'Alámbricos', 'parent_id' => $auriculares->id]);
+        $inalambricos = Category::create(['name' => 'Inalámbricos', 'parent_id' => $auriculares->id]);
 
         // Crear subcategorías para Periféricos
-        $teclados = $perifericos->children()->create(['name' => 'Teclados']);
-        $mecanicos = $teclados->children()->create(['name' => 'Mecánicos']);
-        $membrana = $teclados->children()->create(['name' => 'De Membrana']);
+        $teclados = Category::create(['name' => 'Teclados', 'parent_id' => $perifericos->id]);
+        $mecanicos = Category::create(['name' => 'Mecánicos', 'parent_id' => $teclados->id]);
+        $membrana = Category::create(['name' => 'De Membrana', 'parent_id' => $teclados->id]);
 
-        $mouse = $perifericos->children()->create(['name' => 'Mouse']);
-        $gamer = $mouse->children()->create(['name' => 'Gamer']);
-        $oficina = $mouse->children()->create(['name' => 'Oficina']);
+        $mouse = Category::create(['name' => 'Mouse', 'parent_id' => $perifericos->id]);
+        $gamer = Category::create(['name' => 'Gamer', 'parent_id' => $mouse->id]);
+        $oficina = Category::create(['name' => 'Oficina', 'parent_id' => $mouse->id]);
     }
 
 }

@@ -26,24 +26,18 @@ class CategoryResource extends JsonResource
             'top' => $this->top,
             'active' => $this->active,
             'productsCount' => $this->products_count,
-            'children' => $this->when(
-                $this->relationLoaded('descendants') && $this->descendants->isNotEmpty(),
-                function() {
-                    return CategoryResource::collection(
-                        $this->descendants->filter(function($descendant) {
-                            return $descendant->products_count > 0;
-                        })
-                    );
-                }
-            ),
-            'hasChildren' => $this->when(
-                $this->relationLoaded('descendants'),
-                function() {
-                    return $this->descendants->filter(function($descendant) {
-                        return $descendant->products_count > 0;
-                    })->isNotEmpty();
-                }
-            )
+            'children' => $this->children->map(function($child) {
+                // Si necesitas filtrar solo las categorías con productos, puedes hacerlo aquí
+                return [
+                    'id' => $child->id,
+                    'name' => $child->name,
+                    'imageUrl' => $child->image_url,
+                    'path' => $child->path,
+                    'top' => $child->top,
+                    'active' => $child->active,
+                    'productsCount' => $child->products_count,
+                ];
+            }),
         ];
     }
 }
