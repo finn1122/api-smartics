@@ -21,23 +21,12 @@ class CategoryResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'imageUrl' => $documentUrlService->getFullUrl($this->image_url), // Usar el servicio aquí
+            'imageUrl' => $documentUrlService->getFullUrl($this->image_url),
             'path' => $this->path,
             'top' => $this->top,
             'active' => $this->active,
-            'productsCount' => $this->products_count,
-            'children' => $this->children->map(function($child) {
-                // Si necesitas filtrar solo las categorías con productos, puedes hacerlo aquí
-                return [
-                    'id' => $child->id,
-                    'name' => $child->name,
-                    'imageUrl' => $child->image_url,
-                    'path' => $child->path,
-                    'top' => $child->top,
-                    'active' => $child->active,
-                    'productsCount' => $child->products_count,
-                ];
-            }),
+            'productsCount' => $this->products_count ?? 0, // Asegura valor por defecto
+            'children' => CategoryResource::collection($this->children),
         ];
     }
 }

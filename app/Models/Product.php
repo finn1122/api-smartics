@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Product extends Model
 {
@@ -18,6 +19,8 @@ class Product extends Model
         'product_type',
         'active',
     ];
+
+    protected $casts = ['has_best_supplier' => 'boolean'];
 
     /**
      * Obtener la marca asociada al producto.
@@ -76,5 +79,45 @@ class Product extends Model
         // Obtener la categoría más específica del producto
         $category = $this->categories()->orderBy('parent_id', 'desc')->first(); // Tomar la categoría con el parent_id más alto
         return $category ? $category->getFullPath() . '/' . $this->name : $this->name;
+    }
+
+// En app/Models/Product.php
+    public function scopeWithBestSupplier($query)
+    {
+        return $query->whereHas('externalProductData', function($q) {
+            $q->where('price', '>', 0)
+                ->where('sale_price', '>', 0)
+                ->where('new_sale_price', '>', 0)
+                ->orderByRaw('quantity > 0 DESC, price ASC')
+                ->limit(1);
+        });
+    }
+
+// En App\Models\Product.php
+    public function updateSupplierStatus(): bool
+    {
+        $newStatus = $this->calculateBestSupplier();
+
+        // Solo actualiza si cambió el estado
+        if ($this->has_best_supplier !== $newStatus) {
+            $this->has_best_supplier = $newStatus;
+            $this->save();
+            return true;
+        }
+
+        return false;
+    }
+
+    private function calculateBestSupplier()
+    {
+        $bestSupplier = $this->externalProductData()
+            ->where('price', '>', 0)
+            ->where('sale_price', '>', 0)
+            ->where('new_sale_price', '>', 0)
+            ->orderByRaw('CASE WHEN quantity > 0 THEN 0 ELSE 1 END')
+            ->orderBy('price')
+            ->first();
+
+        return !is_null($bestSupplier);
     }
 }

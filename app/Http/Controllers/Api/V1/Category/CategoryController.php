@@ -21,83 +21,68 @@ class CategoryController extends Controller
         $this->shopProductController = $shopProductController;
     }
     /**
-     * Obtiene las categorías marcadas como top (destacadas) con su estructura jerárquica
-     * que están activas y tienen al menos un producto con precios válidos.
+     * Obtiene categorías top con estructura jerárquica y conteo de productos válidos.
      *
-     * @return JsonResponse
+     * @operationId getTopCategories
+     * @tags Categories
      *
-     * @example Respuesta exitosa:
-     * [
+     * @response 200 {
+     *   "data": [
      *     {
-     *         "id": 1,
-     *         "name": "Electrónica",
-     *         "top": true,
-     *         "children": [
-     *             {
-     *                 "id": 2,
-     *                 "name": "Computadoras",
-     *                 "top": false,
-     *                 "children": [
-     *                     {
-     *                         "id": 3,
-     *                         "name": "Laptops",
-     *                         "top": true,
-     *                         "products_count": 15
-     *                     }
-     *                 ],
-     *                 "products_count": 15
-     *             }
-     *         ],
-     *         "products_count": 30
+     *       "id": 1,
+     *       "name": "Electrónica",
+     *       "top": true,
+     *       "products_count": 42,
+     *       "children": [
+     *         {
+     *           "id": 5,
+     *           "name": "Computadoras",
+     *           "products_count": 15,
+     *           "children": []
+     *         }
+     *       ]
      *     }
-     * ]
+     *   ]
+     * }
      */
     public function getTopCategories(): JsonResponse
     {
-        Log::info('getTopCategories');
+        Log::debug('Inicio: getTopCategories');
 
-        // Obtener categorías marcadas como top con sus descendientes
-        $topCategories = Category::where('top', true)
-            ->with(['descendants' => function($query) {
-                $query->withCount(['products' => function($productQuery) {
-                    $productQuery->whereHas('externalProductData', function($externalQuery) {
-                        $externalQuery->where('price', '>', 0)
-                            ->where('sale_price', '>', 0)
-                            ->where('new_sale_price', '>', 0);
-                    });
-                }]);
+        $categories = Category::query()
+            ->where('top', true)
+            ->with(['descendants' => function ($query) {
+                $query->withCount(['products' => fn($q) => $q->withBestSupplier()]);
             }])
-            ->withCount(['products' => function($query) {
-                $query->whereHas('externalProductData', function($subQuery) {
-                    $subQuery->where('price', '>', 0)
-                        ->where('sale_price', '>', 0)
-                        ->where('new_sale_price', '>', 0);
-                });
-            }])
-            ->get();
+            ->withCount(['products' => fn($q) => $q->withBestSupplier()])
+            ->get()
+            ->filter(fn($cat) => $this->categoryHasValidProducts($cat));
 
-        // Filtrar categorías que tienen productos o descendientes con productos
-        $filteredCategories = $topCategories->filter(function($category) {
-            return $this->categoryHasValidProducts($category);
-        });
+        Log::debug('Categorías procesadas: '.$categories->count());
 
-        return response()->json($filteredCategories);
+        return response()->json([
+            'data' => CategoryResource::collection($categories),
+            'meta' => [
+                'total_categories' => $categories->count(),
+                'timestamp' => now()->toDateTimeString()
+            ]
+        ]);
     }
+
     public function getCategoriesHierarchy(): JsonResponse
     {
-        // Obtener todas las categorías principales (sin padre)
-        $categories = Category::whereNull('parent_id')->get();
+        // Obtener todas las categorías raíz con toda su descendencia
+        $categories = Category::whereIsRoot()
+            ->with(['children' => function($query) {
+                $query->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
 
-        // Recursivamente cargar los hijos de cada categoría
-        $tree = $categories->map(function($category) {
-            return $this->buildCompleteTree($category);
-        });
-
-        // Pasar el árbol ya completo al recurso para ser serializado
-        return response()->json(CategoryResource::collection($tree));
+        return response()->json(CategoryResource::collection($categories));
     }
 
-    private function buildCompleteTree($category)
+    /*private function buildCompleteTree($category)
     {
         // Obtener los hijos directos de la categoría
         $category->children = $category->children;
@@ -108,7 +93,7 @@ class CategoryController extends Controller
         }
 
         return $category;
-    }
+    }*/
 
     /**
      * Función recursiva para verificar si una categoría o sus descendientes tienen productos válidos
