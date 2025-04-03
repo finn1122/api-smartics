@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Category;
 
 use App\Http\Controllers\Api\V1\ShopProduct\ShopProductController;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CategoryHierarchyResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ShopProductResource;
 use App\Models\Category;
@@ -71,29 +72,15 @@ class CategoryController extends Controller
 
     public function getCategoriesHierarchy(): JsonResponse
     {
-        // Obtener todas las categorías raíz con toda su descendencia
         $categories = Category::whereIsRoot()
-            ->with(['children' => function($query) {
-                $query->orderBy('name');
+            ->with(['descendants' => function($query) {
+                $query->orderBy('_lft'); // Importante para mantener el orden jerárquico
             }])
             ->orderBy('name')
             ->get();
 
-        return response()->json(CategoryResource::collection($categories));
+        return response()->json(CategoryHierarchyResource::collection($categories));
     }
-
-    /*private function buildCompleteTree($category)
-    {
-        // Obtener los hijos directos de la categoría
-        $category->children = $category->children;
-
-        // Recursivamente cargar los hijos de los hijos
-        foreach ($category->children as $child) {
-            $child->children = $this->buildCompleteTree($child)->children;
-        }
-
-        return $category;
-    }*/
 
     /**
      * Función recursiva para verificar si una categoría o sus descendientes tienen productos válidos
@@ -149,20 +136,18 @@ class CategoryController extends Controller
      */
     public function getCategoryByPath(string $path): JsonResponse
     {
-        Log::info('getCategoryByPath', ['path' => $path]);
-
-        // Buscar la categoría por nombre y verificar que su path completo coincida
         $category = Category::where('path', $path)
             ->withCount('products')
+            ->with(['ancestors' => function($query) {
+                $query->orderBy('_lft'); // Ordenar por left value para obtener el orden jerárquico correcto
+            }])
             ->first();
 
-        // Verificar si la categoría existe y si el path coincide
         if (!$category) {
             return response()->json(['message' => 'Categoría no encontrada'], 404);
         }
 
-        // Cargar relaciones adicionales si es necesario
-        $category->load(['parent', 'children' => function($query) {
+        $category->load(['children' => function($query) {
             $query->withCount(['products' => function($query) {
                 $query->whereHas('externalProductData', function($subQuery) {
                     $subQuery->where('price', '>', 0)
@@ -217,9 +202,6 @@ class CategoryController extends Controller
             return response()->json(['message' => 'No hay productos disponibles con precios válidos'], 404);
         }
 
-        return response()->json([
-            'category' => new CategoryResource($category),
-            'products' => $productsWithBestPrice
-        ], 200);
+        return response()->json($productsWithBestPrice, 200);
     }
 }

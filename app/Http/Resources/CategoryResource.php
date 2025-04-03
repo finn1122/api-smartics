@@ -15,7 +15,6 @@ class CategoryResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // Resuelve DocumentUrlService desde el contenedor de Laravel
         $documentUrlService = app(DocumentUrlService::class);
 
         return [
@@ -25,8 +24,30 @@ class CategoryResource extends JsonResource
             'path' => $this->path,
             'top' => $this->top,
             'active' => $this->active,
-            'productsCount' => $this->products_count ?? 0, // Asegura valor por defecto
-            'children' => CategoryResource::collection($this->children),
+            'productsCount' => $this->products_count ?? 0,
+            'hierarchy' => $this->whenLoaded('ancestors', function() {
+                return $this->ancestors->map(function($ancestor) {
+                    return [
+                        'id' => $ancestor->id,
+                        'name' => $ancestor->name,
+                        'path' => $ancestor->path,
+                        'parentId' => $ancestor->parent_id, // ← Añade esto
+                        'imageUrl' => app(DocumentUrlService::class)->getFullUrl($ancestor->image_url)
+                    ];
+                });
+            }),
+            'children' => $this->whenLoaded('children', function() {
+                return $this->children->map(function($child) {
+                    return [
+                        'id' => $child->id,
+                        'name' => $child->name,
+                        'path' => $child->path,
+                        'parentId' => $child->parent_id, // ← Añade esto
+                        'imageUrl' => app(DocumentUrlService::class)->getFullUrl($child->image_url),
+                        'productsCount' => $child->products_count ?? 0
+                    ];
+                });
+            }),
         ];
     }
 }
