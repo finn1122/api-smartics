@@ -136,6 +136,7 @@ class CategoryController extends Controller
      */
     public function getCategoryByPath(string $path): JsonResponse
     {
+        Log::info('getCategoryByPath');
         $category = Category::where('path', $path)
             ->withCount('products')
             ->with(['ancestors' => function($query) {

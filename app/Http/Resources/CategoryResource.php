@@ -25,13 +25,16 @@ class CategoryResource extends JsonResource
             'top' => $this->top,
             'active' => $this->active,
             'productsCount' => $this->products_count ?? 0,
+            'fullPathCategory' => $this->whenLoaded('ancestors', function() {
+                return $this->getFullPathCategoryAttribute();
+            }, $this->path),
             'hierarchy' => $this->whenLoaded('ancestors', function() {
                 return $this->ancestors->map(function($ancestor) {
                     return [
                         'id' => $ancestor->id,
                         'name' => $ancestor->name,
                         'path' => $ancestor->path,
-                        'parentId' => $ancestor->parent_id, // ← Añade esto
+                        'parentId' => $ancestor->parent_id,
                         'imageUrl' => app(DocumentUrlService::class)->getFullUrl($ancestor->image_url)
                     ];
                 });
@@ -42,7 +45,7 @@ class CategoryResource extends JsonResource
                         'id' => $child->id,
                         'name' => $child->name,
                         'path' => $child->path,
-                        'parentId' => $child->parent_id, // ← Añade esto
+                        'parentId' => $child->parent_id,
                         'imageUrl' => app(DocumentUrlService::class)->getFullUrl($child->image_url),
                         'productsCount' => $child->products_count ?? 0
                     ];

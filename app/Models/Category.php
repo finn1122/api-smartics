@@ -17,8 +17,20 @@ class Category extends Model
         return $this->belongsToMany(Product::class);
     }
     // Obtener la ruta completa de la categoría
-    public function getFullPath()
+    public function getFullPathProduct(): string
     {
         return $this->ancestors()->pluck('path')->concat([$this->path])->implode('/');
+    }
+
+    public function getFullPathCategoryAttribute()
+    {
+        if (!$this->relationLoaded('ancestors')) {
+            $this->load('ancestors');
+        }
+
+        return $this->ancestors->pluck('path')
+            ->push($this->path)
+            ->filter()
+            ->implode('/');
     }
 }

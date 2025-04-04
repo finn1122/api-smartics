@@ -23,8 +23,8 @@ class ShopProductResource extends JsonResource
             'active' => $this->active,
 
             // Path completo listo para usar en URLs
-            'fullPath' => $mainCategory
-                ? $mainCategory->getFullPath() . '/' . Str::slug($this->name)
+            'fullPathProduct' => $mainCategory
+                ? $mainCategory->getFullPathProduct() . '/' . Str::slug($this->name)
                 : Str::slug($this->name),
 
             // Jerarquía estructurada para navegación
