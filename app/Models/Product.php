@@ -81,7 +81,6 @@ class Product extends Model
         return $category ? $category->getFullPath() . '/' . $this->name : $this->name;
     }
 
-// En app/Models/Product.php
     public function scopeWithBestSupplier($query)
     {
         return $query->whereHas('externalProductData', function($q) {
@@ -93,7 +92,6 @@ class Product extends Model
         });
     }
 
-// En App\Models\Product.php
     public function updateSupplierStatus(): bool
     {
         $newStatus = $this->calculateBestSupplier();
@@ -119,5 +117,13 @@ class Product extends Model
             ->first();
 
         return !is_null($bestSupplier);
+    }
+
+    public function getMainCategory()
+    {
+        // Puedes ajustar esta lógica según cómo determines la categoría principal
+        return $this->categories->sortByDesc(function($category) {
+            return $category->depth; // Asumiendo que usas NodeTrait que proporciona depth
+        })->first();
     }
 }

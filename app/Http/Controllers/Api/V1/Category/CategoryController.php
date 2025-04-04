@@ -170,9 +170,13 @@ class CategoryController extends Controller
         Log::info('getProductsByCategoryId', ['categoryId' => $categoryId]);
 
         // 1. Buscar la categoría con sus productos básicos
-        $category = Category::with(['products' => function($query) {
-            $query->with(['brand', 'gallery']);
-        }])->find($categoryId);
+        $category = Category::with([
+            'products' => function($query) {
+                $query->with(['brand', 'gallery', 'categories' => function($q) {
+                    $q->with('ancestors');
+                }]);
+            }
+        ])->find($categoryId);
 
         if (!$category) {
             return response()->json(['message' => 'Categoría no encontrada'], 404);

@@ -19,6 +19,6 @@ class Category extends Model
     // Obtener la ruta completa de la categoría
     public function getFullPath()
     {
-        return $this->ancestors()->pluck('name')->concat([$this->name])->implode('/');
+        return $this->ancestors()->pluck('path')->concat([$this->path])->implode('/');
     }
 }
