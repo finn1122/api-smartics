@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Api\V1\ShopProduct;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ExternalProductDataResource;
+use App\Http\Resources\ShopProductResource;
 use App\Models\Product;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ShopProductController extends Controller
 {
@@ -60,4 +64,74 @@ class ShopProductController extends Controller
         // Retornar el proveedor seleccionado
         return response()->json(new ExternalProductDataResource($bestSupplierData), 200);
     }
+
+    public function getProductByPath(Request $request): JsonResponse
+    {
+        try {
+            $path = $request->input('path');
+            Log::info('Buscando producto por path', ['path' => $path]);
+
+            $segments = explode('/', $path);
+            $productSlug = end($segments);
+            $cacheKey = "product.path.{$productSlug}";
+
+            // 1. Caché para datos estáticos (producto + relaciones)
+            $product = Cache::remember($cacheKey, now()->addHours(12), function () use ($productSlug) {
+                return Product::with([
+                    'categories' => function($query) {
+                        $query->with('ancestors')->orderBy('_lft', 'desc');
+                    },
+                    'brand',
+                    'gallery'
+                ])->where('slug', $productSlug)->firstOrFail();
+            });
+
+            // 2. Validación de categoría (siempre fresca)
+            $mainCategory = $product->categories->sortByDesc('_lft')->first();
+            if (!$mainCategory) {
+                throw new \RuntimeException('El producto no tiene categoría asignada');
+            }
+
+            // 3. Path canónico (sin caché para redirecciones precisas)
+            $expectedPath = $mainCategory->getFullPathProduct() . '/' . $product->slug;
+            if ($expectedPath !== $path) {
+                return response()->json([
+                    'redirect_to' => $expectedPath,
+                    'canonical_url' => url("/{$expectedPath}")
+                ], 301);
+            }
+
+            // 4. Datos dinámicos (siempre consultados en tiempo real)
+            $dynamicData = [
+                'inventory' => [
+                    'stock' => $product->current_stock, // Método o atributo fresco
+                    'price' => $product->current_price
+                ]
+            ];
+
+            // 5. Respuesta combinada
+            return response()->json([
+                'data' => new ShopProductResource($product),
+                'meta' => [
+                    'canonical_url' => url("/{$expectedPath}"),
+                    'schema_type' => 'Product',
+                    'cache_hit' => Cache::has($cacheKey) // Para debugging
+                ],
+                'dynamic' => $dynamicData
+            ]);
+
+        } catch (ModelNotFoundException $e) {
+            Log::error("Producto no encontrado: {$path}");
+            return response()->json(['error' => 'Producto no encontrado'], 404);
+
+        } catch (\RuntimeException $e) {
+            Log::error("Error de categoría: " . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 422);
+
+        } catch (\Exception $e) {
+            Log::error("Error inesperado: " . $e->getMessage());
+            return response()->json(['error' => 'Error interno'], 500);
+        }
+    }
+
 }

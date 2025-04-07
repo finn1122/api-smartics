@@ -5,11 +5,11 @@ use App\Http\Controllers\Auth\JWTAuthController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Middleware\JwtMiddleware;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\ShopCategory\ShopCategoryController;
 use App\Http\Controllers\Api\V1\Slider\SliderController;
 use App\Http\Controllers\Api\V1\Tag\TagProductController;
 use App\Http\Controllers\Api\V1\Tag\TagController;
 use App\Http\Controllers\Api\V1\Category\CategoryController;
+use App\Http\Controllers\Api\V1\ShopProduct\ShopProductController;
 
 Route::get('/', function () {
     return response()->json([
@@ -61,6 +61,13 @@ Route::prefix('v1')->namespace('App\Http\Controllers\Api\V1')->group(function ()
         Route::prefix('user/{user_id}')->group(function () {
             Route::get('/', [UserController::class, 'getUserById']);
         });
+    });
+
+    // [[ CATEGORIES ]]
+    Route::prefix('product')->group(function() {
+        Route::get('/', [ShopProductController::class, 'getProductByPath']);
+
+
     });
 });
 

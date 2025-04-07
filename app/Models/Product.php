@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class Product extends Model
 {
@@ -17,6 +18,7 @@ class Product extends Model
         'warranty',
         'brand_id',
         'product_type',
+        'slug',
         'active',
     ];
 
@@ -74,11 +76,13 @@ class Product extends Model
     }
 
     // Obtener la ruta completa del producto
-    public function getProductPath()
+// Modelo Product.php
+    public function getFullProductPathAttribute()
     {
-        // Obtener la categoría más específica del producto
-        $category = $this->categories()->orderBy('parent_id', 'desc')->first(); // Tomar la categoría con el parent_id más alto
-        return $category ? $category->getFullPath() . '/' . $this->name : $this->name;
+        $mainCategory = $this->categories->sortByDesc('depth')->first();
+        return $mainCategory
+            ? $mainCategory->getFullPathProduct() . '/' . $this->slug
+            : $this->slug;
     }
 
     public function scopeWithBestSupplier($query)
@@ -125,5 +129,20 @@ class Product extends Model
         return $this->categories->sortByDesc(function($category) {
             return $category->depth; // Asumiendo que usas NodeTrait que proporciona depth
         })->first();
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($product) {
+            $product->slug = Str::slug($product->name);
+        });
+
+        static::updating(function ($product) {
+            if ($product->isDirty('name')) { // Solo si cambia el nombre
+                $product->slug = Str::slug($product->name);
+            }
+        });
     }
 }

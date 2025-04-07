@@ -21,11 +21,12 @@ class ShopProductResource extends JsonResource
             'sku' => $this->sku,
             'warranty' => $this->warranty,
             'active' => $this->active,
+            'slug'   => $this->slug,
 
             // Path completo listo para usar en URLs
             'fullPathProduct' => $mainCategory
-                ? $mainCategory->getFullPathProduct() . '/' . Str::slug($this->name)
-                : Str::slug($this->name),
+                ? $mainCategory->getFullPathProduct() . '/' . $this->slug // <- Cambio clave aquí
+                : $this->slug,
 
             // Jerarquía estructurada para navegación
             'hierarchy' => $mainCategory ? [
