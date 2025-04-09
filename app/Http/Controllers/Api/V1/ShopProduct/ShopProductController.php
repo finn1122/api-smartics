@@ -101,25 +101,28 @@ class ShopProductController extends Controller
                 ], 301);
             }
 
-            // 4. Datos dinámicos (siempre consultados en tiempo real)
-            $dynamicData = [
-                'inventory' => [
-                    'stock' => $product->current_stock, // Método o atributo fresco
-                    'price' => $product->current_price
-                ]
-            ];
+            $bestPriceResponse = app()->make(ShopProductController::class)
+                ->getBestSupplierForProduct($product->id);
 
-            // 5. Respuesta combinada
-            return response()->json([
-                'data' => new ShopProductResource($product),
-                'meta' => [
-                    'canonical_url' => url("/{$expectedPath}"),
-                    'schema_type' => 'Product',
-                    'cache_hit' => Cache::has($cacheKey) // Para debugging
-                ],
-                'dynamic' => $dynamicData
-            ]);
+            // Si no hay proveedor válido, descartar el producto
+            if ($bestPriceResponse || $bestPriceResponse->getStatusCode() == 200) {
+                $bestPriceData = json_decode($bestPriceResponse->getContent(), true);
 
+                // 4. Crear el resource del producto y agregar bestPrice
+                $productResource = new ShopProductResource($product);
+                $productResource->additional(['bestPrice' => $bestPriceData]);
+
+
+                // 5. Respuesta combinada
+                return response()->json([
+                    'data' => $productResource,
+                    'meta' => [
+                        'canonical_url' => url("/{$expectedPath}"),
+                        'schema_type' => 'Product',
+                        'cache_hit' => Cache::has($cacheKey) // Para debugging
+                    ],
+                ]);
+            }
         } catch (ModelNotFoundException $e) {
             Log::error("Producto no encontrado: {$path}");
             return response()->json(['error' => 'Producto no encontrado'], 404);
