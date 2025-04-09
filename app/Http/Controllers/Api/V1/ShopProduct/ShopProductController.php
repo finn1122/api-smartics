@@ -104,7 +104,7 @@ class ShopProductController extends Controller
             $bestPriceResponse = app()->make(ShopProductController::class)
                 ->getBestSupplierForProduct($product->id);
 
-            // Si no hay proveedor válido, descartar el producto
+            // Si hay proveedor válido, no descartar el producto
             if ($bestPriceResponse || $bestPriceResponse->getStatusCode() == 200) {
                 $bestPriceData = json_decode($bestPriceResponse->getContent(), true);
 
