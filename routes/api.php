@@ -55,6 +55,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [ShopProductController::class, 'getProductByPath']);
     });
 
+    // Este endpoint estará accesible tanto con sesión (invitado) como con JWT
+    Route::get('cart', [CartController::class, 'getActiveCart'])->middleware(HandleCart::class);
+
     // Rutas protegidas por JWT
     Route::middleware(JwtMiddleware::class)->group(function () {
         Route::post('logout', [JWTAuthController::class, 'logout']);
@@ -63,9 +66,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [UserController::class, 'getUserById']);
         });
 
-        // Rutas de carrito para usuarios autenticados
         Route::prefix('cart')->middleware(HandleCart::class)->group(function () {
-            Route::get('/', [CartController::class, 'getActiveCart']);
             Route::post('/items', [CartItemController::class, 'store']);
             Route::put('/items/{item}', [CartItemController::class, 'update']);
             Route::delete('/items/{item}', [CartItemController::class, 'destroy']);
@@ -75,10 +76,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/{cart}/activate', [CartController::class, 'activateCart']);
             Route::post('/{cart}/share', [CartController::class, 'shareCart']);
         });
+
     });
 
     // Rutas de carrito para invitados
     Route::prefix('guest-cart')->middleware(HandleCart::class)->group(function () {
+        Route::get('/', [CartController::class, 'getActiveCart']);
+
         Route::post('/items', [CartItemController::class, 'store']);
         Route::put('/items/{item}', [CartItemController::class, 'update']);
         Route::delete('/items/{item}', [CartItemController::class, 'destroy']);

@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->group('api', [
             EncryptCookies::class,
             StartSession::class,
+            HandleCart::class, // Agregar HandleCart aquí
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

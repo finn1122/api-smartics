@@ -24,80 +24,67 @@ class CartItemController extends Controller
      */
     public function store(Request $request)
     {
-        Log::info('CartItemController@store');
         $request->validate([
             'productId' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
         ]);
 
         return DB::transaction(function () use ($request) {
-            // Obtener o crear el carrito activo del usuario
+            // 1. Obtener información básica
             $cart = $this->getOrCreateActiveCart();
+            $product = Product::findOrFail($request->productId);
 
-            // Obtener el producto con su mejor precio
+            // 2. Obtener mejor precio como lo haces actualmente
             $bestPriceResponse = app()->make(ShopProductController::class)
                 ->getBestSupplierForProduct($request->productId);
 
-            if ($bestPriceResponse || $bestPriceResponse->getStatusCode() == 200) {
-                $bestPriceData = json_decode($bestPriceResponse->getContent(), true);
-
-                Log::debug($bestPriceData);
-
-                $product = Product::findOrFail($request->productId);
-
-
-                $productResource = new ShopProductResource($product);
-                $productResource->additional(['bestPrice' => $bestPriceData]);
-
-
-
-                // Verificar disponibilidad
-                if (!$this->checkProductAvailability($bestPriceData, $request->quantity)) {
-                    return response()->json([
-                        'message' => 'No hay suficiente stock disponible',
-                        'available_quantity' => $product->bestPrice->quantity ?? 0
-                    ], 422);
-                }
-
-                // Buscar si el producto ya está en el carrito
-                $existingItem = $cart->items()
-                    ->where('product_id', $product->id)
-                    ->where('supplier_id', $bestPriceData['supplierId'])
-                    ->first();
-
-                if ($existingItem) {
-                    // Actualizar cantidad si ya existe
-                    $existingItem->update([
-                        'quantity' => $existingItem->quantity + $request->quantity,
-                    ]);
-
-                    $item = $existingItem;
-                } else {
-                    // Crear nuevo ítem en el carrito
-                    $item = CartItem::create([
-                        'cart_id' => $cart->id,
-                        'product_id' => $product->id,
-                        'supplier_id' => $bestPriceData['supplierId'],
-                        'price' => $bestPriceData['newSalePrice'] ?? $bestPriceData['salePrice'],
-                        'original_price' => $bestPriceData['salePrice'],
-                        'quantity' => $request->quantity,
-                    ]);
-                }
-
-                // Actualizar timestamp del carrito
-                $cart->touch();
-
-                return response()->json([
-                    'message' => 'Producto agregado al carrito',
-                    'cart_item' => $item,
-                    'cart_total_items' => $cart->items()->count(),
-                    'cart_total_price' => $cart->total,
-                ], 201);
+            if (!$bestPriceResponse || $bestPriceResponse->getStatusCode() != 200) {
+                throw new \Exception('No se pudo obtener el precio del producto', 500);
             }
-            });
 
+            $bestPrice = json_decode($bestPriceResponse->getContent(), true);
+
+            // 3. Validar stock
+            if (isset($bestPrice['quantity']) && $bestPrice['quantity'] < $request->quantity) {
+                return response()->json([
+                    'message' => 'Stock insuficiente',
+                    'availableQuantity' => $bestPrice['quantity']
+                ], 422);
+            }
+
+            // 4. Actualizar/crear ítem
+            $item = $cart->items()->updateOrCreate(
+                [
+                    'product_id' => $product->id,
+                    'supplier_id' => $bestPrice['supplierId']
+                ],
+                [
+                    'price' => $bestPrice['newSalePrice'] ?? $bestPrice['salePrice'],
+                    'original_price' => $bestPrice['salePrice'],
+                    'quantity' => DB::raw("quantity + {$request->quantity}")
+                ]
+            );
+
+            // 5. Respuesta optimizada
+            return response()->json([
+                'itemId' => $item->id,
+                'productId' => $item->product_id,
+                'supplierId' => $item->supplier_id,
+                'newQuantity' => $item->quantity,
+                'unitPrice' => $item->price,
+                'cartTotal' => $cart->refresh()->total
+            ], 201);
+        });
     }
+    protected function checkProductAvailability(array $bestPriceData, int $quantity): bool
+    {
+        // Si no hay información de stock, asumimos que está disponible
+        if (!isset($bestPriceData['quantity'])) {
+            return true;
+        }
 
+        return $bestPriceData['quantity'] >= $quantity;
+    }
     /**
      * Obtiene o crea el carrito activo del usuario
      *
@@ -131,23 +118,6 @@ class CartItemController extends Controller
                 'expires_at' => now()->addDays(1), // Carritos de invitados expiran más rápido
             ]
         );
-    }
-
-    /**
-     * Verifica la disponibilidad del producto
-     *
-     * @param Product $product
-     * @param int $quantity
-     * @return bool
-     */
-    protected function checkProductAvailability($product, int $quantity)
-    {
-        // Si no hay información de stock, asumimos que está disponible
-        if (!isset($bestPriceData->quantity)) {
-            return true;
-        }
-
-        return $product->bestPrice->quantity >= $quantity;
     }
 
     /**

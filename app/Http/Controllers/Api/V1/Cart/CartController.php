@@ -3,27 +3,28 @@
 namespace App\Http\Controllers\Api\V1\Cart;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CartResource;
 use App\Models\Cart;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class CartController extends Controller
 {
-    public function __construct()
+    public function getActiveCart(): JsonResponse
     {
-        // Aplicar middleware a métodos específicos si es necesario
-        $this->middleware('auth:api')->except(['getSharedCart', 'cloneSharedCart']);
-    }
+        Log::info('getActiveCart');
 
-    public function getActiveCart()
-    {
         $cart = Auth::check()
             ? $this->getUserCart()
             : $this->getGuestCart();
 
+        // Usamos el recurso CartResource para transformar la respuesta
         return response()->json([
             'success' => true,
-            'data' => $cart->load(['items.product.bestPrice', 'items.supplier'])
+            'data' => new CartResource($cart->load(['items.product', 'items.supplier'])),
         ]);
     }
 
@@ -31,7 +32,7 @@ class CartController extends Controller
     {
         return Cart::firstOrCreate(
             ['user_id' => Auth::id(), 'is_active' => true],
-            ['uuid' => \Illuminate\Support\Str::uuid(), 'expires_at' => now()->addDays(30)]
+            ['uuid' => Str::uuid(), 'expires_at' => now()->addDays(30)]
         );
     }
 
