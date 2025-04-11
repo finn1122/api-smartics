@@ -15,7 +15,7 @@ class CartController extends Controller
 {
     public function getActiveCart(Request $request): JsonResponse
     {
-        Log::info('getActiveCart');
+        Log::info('CartController@getActiveCart');
 
         // Obtenemos el sessionId de la solicitud, si existe. Si no, usamos el de la sesión actual.
         $sessionId = $request->sessionId ?? session()->getId();
@@ -28,7 +28,7 @@ class CartController extends Controller
         // Usamos el recurso CartResource para transformar la respuesta
         return response()->json([
             'success' => true,
-            'data' => new CartResource($cart->load(['items.product', 'items.supplier'])),
+            'data' => new CartResource($cart->load(['items.product.gallery', 'items.supplier'])),
         ]);
     }
 

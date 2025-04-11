@@ -24,15 +24,17 @@ class CartItemController extends Controller
      */
     public function store(Request $request)
     {
+        Log::info('CartItemController@store', ['request' => $request->all()]);
+
         $request->validate([
             'productId' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
-            'sessionId' => 'required_if:token,null|string',  // Verifica si el sessionId es requerido cuando no hay token
+            'sessionId' => 'required_if:token,null|string',
         ]);
 
         return DB::transaction(function () use ($request) {
             // 1. Obtener información básica
-            $cart = $this->getOrCreateActiveCart($request->sessionId);  // Pasamos el sessionId si está presente
+            $cart = $this->getOrCreateActiveCart($request->sessionId);
             $product = Product::findOrFail($request->productId);
 
             // 2. Obtener mejor precio
@@ -53,20 +55,33 @@ class CartItemController extends Controller
                 ], 422);
             }
 
-            // 4. Actualizar/crear ítem en el carrito
-            $item = $cart->items()->updateOrCreate(
-                [
+            // 4. Buscar si ya existe el ítem
+            $existingItem = $cart->items()
+                ->where('product_id', $product->id)
+                ->where('supplier_id', $bestPrice['supplierId'])
+                ->first();
+
+            // 5. Actualizar o crear según corresponda
+            if ($existingItem) {
+                // Actualizar cantidad existente
+                $existingItem->update([
+                    'quantity' => $existingItem->quantity + $request->quantity,
+                    'price' => $bestPrice['newSalePrice'] ?? $bestPrice['salePrice'],
+                    'original_price' => $bestPrice['salePrice']
+                ]);
+                $item = $existingItem;
+            } else {
+                // Crear nuevo ítem
+                $item = $cart->items()->create([
                     'product_id' => $product->id,
-                    'supplier_id' => $bestPrice['supplierId']
-                ],
-                [
+                    'supplier_id' => $bestPrice['supplierId'],
                     'price' => $bestPrice['newSalePrice'] ?? $bestPrice['salePrice'],
                     'original_price' => $bestPrice['salePrice'],
-                    'quantity' => DB::raw("quantity + {$request->quantity}")
-                ]
-            );
+                    'quantity' => $request->quantity
+                ]);
+            }
 
-            // 5. Respuesta optimizada
+            // 6. Respuesta optimizada
             return response()->json([
                 'itemId' => $item->id,
                 'productId' => $item->product_id,
