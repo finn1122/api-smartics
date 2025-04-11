@@ -5,5 +5,8 @@
         "build": "vite build",
         "dev": "vite"
     },
-    "devDependencies": {}
+    "devDependencies": {},
+    "dependencies": {
+        "uuid": "^11.1.0"
+    }
 }

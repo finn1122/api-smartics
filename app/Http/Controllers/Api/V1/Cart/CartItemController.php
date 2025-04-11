@@ -27,14 +27,15 @@ class CartItemController extends Controller
         $request->validate([
             'productId' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
+            'sessionId' => 'required_if:token,null|string',  // Verifica si el sessionId es requerido cuando no hay token
         ]);
 
         return DB::transaction(function () use ($request) {
             // 1. Obtener información básica
-            $cart = $this->getOrCreateActiveCart();
+            $cart = $this->getOrCreateActiveCart($request->sessionId);  // Pasamos el sessionId si está presente
             $product = Product::findOrFail($request->productId);
 
-            // 2. Obtener mejor precio como lo haces actualmente
+            // 2. Obtener mejor precio
             $bestPriceResponse = app()->make(ShopProductController::class)
                 ->getBestSupplierForProduct($request->productId);
 
@@ -52,7 +53,7 @@ class CartItemController extends Controller
                 ], 422);
             }
 
-            // 4. Actualizar/crear ítem
+            // 4. Actualizar/crear ítem en el carrito
             $item = $cart->items()->updateOrCreate(
                 [
                     'product_id' => $product->id,
@@ -90,36 +91,21 @@ class CartItemController extends Controller
      *
      * @return Cart
      */
-    protected function getOrCreateActiveCart()
+    private function getOrCreateActiveCart($sessionId = null)
     {
-        $user = Auth::user();
-        $sessionId = session()->getId();
-
-        if ($user) {
-            return Cart::firstOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'is_active' => true,
-                ],
-                [
-                    'uuid' => Str::uuid(),
-                    'expires_at' => now()->addDays(30),
-                ]
-            );
+        // Si existe un token, asociamos el carrito al usuario autenticado
+        if (auth()->check()) {
+            return auth()->user()->cart ?: auth()->user()->cart()->create();
         }
 
-        return Cart::firstOrCreate(
-            [
-                'session_id' => $sessionId,
-                'is_active' => true,
-            ],
-            [
-                'uuid' => Str::uuid(),
-                'expires_at' => now()->addDays(1), // Carritos de invitados expiran más rápido
-            ]
-        );
-    }
+        // Si no hay usuario autenticado, buscamos el carrito por sessionId
+        if ($sessionId) {
+            return Cart::firstOrCreate(['session_id' => $sessionId]);
+        }
 
+        // Si no hay sessionId y no hay usuario autenticado, se crea un carrito temporal
+        return Cart::create(['session_id' => $sessionId ?? (string) \Str::uuid()]);
+    }
     /**
      * Actualiza la cantidad de un producto en el carrito
      *

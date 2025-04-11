@@ -13,13 +13,17 @@ use Illuminate\Support\Str;
 
 class CartController extends Controller
 {
-    public function getActiveCart(): JsonResponse
+    public function getActiveCart(Request $request): JsonResponse
     {
         Log::info('getActiveCart');
 
+        // Obtenemos el sessionId de la solicitud, si existe. Si no, usamos el de la sesión actual.
+        $sessionId = $request->sessionId ?? session()->getId();
+
+        // Obtenemos el carrito según si el usuario está autenticado o no.
         $cart = Auth::check()
             ? $this->getUserCart()
-            : $this->getGuestCart();
+            : $this->getGuestCart($sessionId);  // Pasamos el sessionId si es necesario.
 
         // Usamos el recurso CartResource para transformar la respuesta
         return response()->json([
@@ -36,11 +40,12 @@ class CartController extends Controller
         );
     }
 
-    protected function getGuestCart()
+    protected function getGuestCart($sessionId)
     {
         return Cart::firstOrCreate(
-            ['session_id' => session()->getId(), 'is_active' => true],
-            ['uuid' => \Illuminate\Support\Str::uuid(), 'expires_at' => now()->addDays(1)]
+            ['session_id' => $sessionId, 'is_active' => true],
+            ['uuid' => Str::uuid(), 'expires_at' => now()->addDays(1)]
         );
     }
+
 }
