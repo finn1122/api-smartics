@@ -82,9 +82,11 @@ class ShopProductController extends Controller
                         $query->with('ancestors')->orderBy('_lft', 'desc');
                     },
                     'brand',
-                    'gallery'
                 ])->where('slug', $productSlug)->firstOrFail();
             });
+
+            // Carga gallery siempre fresca
+            $product->load('gallery');
 
             // 2. Validación de categoría (siempre fresca)
             $mainCategory = $product->categories->sortByDesc('_lft')->first();
