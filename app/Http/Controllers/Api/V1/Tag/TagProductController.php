@@ -40,7 +40,7 @@ class TagProductController extends Controller
 
         // Procesar productos con proveedor más económico
         $productsWithBestSupplier = $products->map(function ($product) {
-            $bestSupplierResponse = $this->shopProductController->getBestSupplierForProduct($product->id);
+            $bestSupplierResponse = $this->shopProductController->getBestPriceData($product->id);
 
             if (!$bestSupplierResponse) {
                 return null;

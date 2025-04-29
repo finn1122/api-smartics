@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('product')->group(function() {
         Route::get('/', [ShopProductController::class, 'getProductByPath']);
+        Route::get('/{product_id}/best-price', [ShopProductController::class, 'getBestPriceData']);
     });
 
     // Este endpoint estará accesible tanto con sesión (invitado) como con JWT
@@ -83,8 +84,8 @@ Route::prefix('v1')->group(function () {
     Route::prefix('guest-cart')->middleware(HandleCart::class)->group(function () {
         Route::get('/', [CartController::class, 'getActiveCart']);
 
-        Route::post('/items', [CartItemController::class, 'store']);
-        Route::put('/items/{item}', [CartItemController::class, 'update']);
+        Route::post('/items', [CartItemController::class, 'storeGuestCart']);
+        Route::put('/items/{item}', [CartItemController::class, 'updateGuestCart']);
         Route::delete('/items/{item}', [CartItemController::class, 'destroy']);
     });
 

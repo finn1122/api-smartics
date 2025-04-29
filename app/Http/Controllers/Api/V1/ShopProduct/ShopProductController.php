@@ -21,9 +21,9 @@ class ShopProductController extends Controller
      * @param int $productId
      * @return JsonResponse|null
      */
-    public function getBestSupplierForProduct($productId): ?JsonResponse
+    public function getBestPriceData($productId): ?JsonResponse
     {
-        Log::info('getBestSupplierForProduct: ' . $productId);
+        Log::info('getBestPriceData: ' . $productId);
 
         // Buscar el producto por su ID
         $product = Product::find($productId);
@@ -104,7 +104,7 @@ class ShopProductController extends Controller
             }
 
             $bestPriceResponse = app()->make(ShopProductController::class)
-                ->getBestSupplierForProduct($product->id);
+                ->getBestPriceData($product->id);
 
             // Si hay proveedor válido, no descartar el producto
             if ($bestPriceResponse || $bestPriceResponse->getStatusCode() == 200) {
@@ -139,4 +139,42 @@ class ShopProductController extends Controller
         }
     }
 
+    /**
+     * Obtiene SOLO los datos del bestPrice (sin metadata ni recursos adicionales).
+     *
+     * @param int $productId
+     * @return JsonResponse
+     */
+    public function getBestPriceOnly($productId): JsonResponse
+    {
+        try {
+            // Reutilizamos la lógica existente
+            $bestPriceResponse = $this->getBestPriceData($productId);
+
+            if (!$bestPriceResponse || $bestPriceResponse->getStatusCode() !== 200) {
+                return response()->json([
+                    'error' => 'No hay precios disponibles para este producto.'
+                ], 404);
+            }
+
+            // Decodificamos la respuesta JSON del método existente
+            $bestPriceData = json_decode($bestPriceResponse->getContent(), true);
+
+            // Extraemos solo los campos necesarios
+            return response()->json([
+                'price' => $bestPriceData['price'] ?? null,
+                'sale_price' => $bestPriceData['sale_price'] ?? null,
+                'new_sale_price' => $bestPriceData['new_sale_price'] ?? null,
+                'currency' => $bestPriceData['currency'] ?? 'MXN',
+                'has_stock' => ($bestPriceData['quantity'] ?? 0) > 0,
+                'supplier_id' => $bestPriceData['supplier_id'] ?? null,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error en getBestPriceOnly: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al obtener el precio.'
+            ], 500);
+        }
+    }
 }

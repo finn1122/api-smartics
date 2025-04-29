@@ -22,7 +22,7 @@ class CartItemController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function storeGuestCart(Request $request)
     {
         Log::info('CartItemController@store', ['request' => $request->all()]);
 
@@ -39,7 +39,7 @@ class CartItemController extends Controller
 
             // 2. Obtener mejor precio
             $bestPriceResponse = app()->make(ShopProductController::class)
-                ->getBestSupplierForProduct($request->productId);
+                ->getBestPriceData($request->productId);
 
             if (!$bestPriceResponse || $bestPriceResponse->getStatusCode() != 200) {
                 throw new \Exception('No se pudo obtener el precio del producto', 500);
@@ -125,41 +125,68 @@ class CartItemController extends Controller
      * Actualiza la cantidad de un producto en el carrito
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  CartItem $cartItem
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, CartItem $cartItem)
+    public function updateGuestCart(Request $request, int $item_id)
     {
+        Log::info('CartItemController@updateGuestCart', ['request' => $request->all()]);
+        Log::debug('Item ID desde URL: ' . $item_id);
+
+        // Validar la solicitud
         $request->validate([
-            'quantity' => 'required|integer|min:1',
+            'quantity'   => 'required|integer|min:1',
+            'sessionId'  => 'required|string', // Este es el campo session_id en la base de datos
         ]);
 
-        // Verificar que el ítem pertenezca al carrito del usuario
-        $this->authorize('update', $cartItem);
+        // Buscar el carrito por session_id
+        $cart = Cart::where('session_id', $request->sessionId)->first();
 
-        // Obtener el producto con su mejor precio
-        $product = Product::with('bestPrice')
-            ->findOrFail($cartItem->product_id);
+        if (!$cart) {
+            return response()->json(['message' => 'Carrito no encontrado.'], 404);
+        }
+
+        // Buscar el item en el carrito usando el ID de la URL
+        $cartItem = $cart->items()->where('id', $item_id)->first();
+
+        if (!$cartItem) {
+            return response()->json(['message' => 'Item no encontrado en el carrito.'], 404);
+        }
+
+        // Obtener el producto
+        $product = Product::findOrFail($cartItem->product_id);
+
+        // Obtener bestPrice llamando al controlador
+        $bestPriceResponse = app()->make(ShopProductController::class)->getBestPriceData($product->id);
+
+        if (!$bestPriceResponse || $bestPriceResponse->getStatusCode() !== 200) {
+            return response()->json([
+                'message' => 'No se pudo obtener la información de stock del producto.',
+            ], 500);
+        }
+
+        $bestPriceData = json_decode($bestPriceResponse->getContent(), true);
+        $availableQuantity = $bestPriceData['quantity'] ?? 0;
 
         // Verificar disponibilidad
-        if (!$this->checkProductAvailability($product, $request->quantity)) {
+        if ($availableQuantity < $request->quantity) {
             return response()->json([
                 'message' => 'No hay suficiente stock disponible',
-                'available_quantity' => $product->bestPrice->quantity ?? 0
+                'available_quantity' => $availableQuantity
             ], 422);
         }
 
+        // Actualizar la cantidad del item
         $cartItem->update([
             'quantity' => $request->quantity,
         ]);
 
-        // Actualizar timestamp del carrito
-        $cartItem->cart->touch();
+        // Actualizar el timestamp del carrito
+        $cart->touch();
 
         return response()->json([
             'message' => 'Cantidad actualizada',
             'cart_item' => $cartItem,
-            'cart_total_price' => $cartItem->cart->total,
+            'cart_total_price' => $cart->total,
         ]);
     }
 

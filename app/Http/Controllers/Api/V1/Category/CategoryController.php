@@ -187,7 +187,7 @@ class CategoryController extends Controller
         $productsWithBestPrice = $category->products->map(function ($product) {
             // Usar el método del otro controlador para obtener el mejor precio
             $bestPriceResponse = app()->make(ShopProductController::class)
-                ->getBestSupplierForProduct($product->id);
+                ->getBestPriceData($product->id);
 
             // Si no hay proveedor válido, descartar el producto
             if (!$bestPriceResponse || $bestPriceResponse->getStatusCode() != 200) {

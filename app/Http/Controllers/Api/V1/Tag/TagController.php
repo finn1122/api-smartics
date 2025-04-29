@@ -30,7 +30,7 @@ class TagController extends Controller
             ->map(function ($tag) {
                 // Filtrar productos con bestPrice válido
                 $validProducts = $tag->products->filter(function ($product) {
-                    $bestSupplierResponse = $this->shopProductController->getBestSupplierForProduct($product->id);
+                    $bestSupplierResponse = $this->shopProductController->getBestPriceData($product->id);
                     Log::debug($bestSupplierResponse);
 
                     if (!$bestSupplierResponse) {
