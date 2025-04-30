@@ -83,10 +83,14 @@ Route::prefix('v1')->group(function () {
     // Rutas de carrito para invitados
     Route::prefix('guest-cart')->middleware(HandleCart::class)->group(function () {
         Route::get('/', [CartController::class, 'getActiveCart']);
+        Route::delete('/clear', [CartController::class, 'clearGuestCart']);
 
-        Route::post('/items', [CartItemController::class, 'storeGuestCart']);
-        Route::put('/items/{item}', [CartItemController::class, 'updateGuestCart']);
-        Route::delete('/items/{item}', [CartItemController::class, 'removeItemGuestCart']);
+        // Item-level operations
+        Route::prefix('items')->group(function () {
+            Route::post('/', [CartItemController::class, 'storeGuestCart']);
+            Route::put('/{item}', [CartItemController::class, 'updateGuestCart']);
+            Route::delete('/{item}', [CartItemController::class, 'removeItemGuestCart']);
+        });
     });
 
     // Rutas públicas para carritos compartidos

@@ -8,6 +8,7 @@ use App\Models\Cart;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -46,6 +47,37 @@ class CartController extends Controller
             ['session_id' => $sessionId, 'is_active' => true],
             ['uuid' => Str::uuid(), 'expires_at' => now()->addDays(1)]
         );
+    }
+
+    /**
+     * Clear all items from the guest cart
+     * DELETE /api/v1/guest-cart/clear?sessionId=xxx
+     */
+    public function clearGuestCart(Request $request)
+    {
+        $request->validate([
+            'sessionId' => 'required|string',
+        ]);
+
+        Log::info('CartController@clearGuestCart', [
+            'sessionId' => $request->sessionId
+        ]);
+
+        $cart = Cart::where('session_id', $request->sessionId)->first();
+
+        if (!$cart) {
+            return response()->json(['message' => 'Carrito no encontrado'], 404);
+        }
+
+        DB::transaction(function () use ($cart) {
+            $cart->items()->delete();
+            $cart->touch();
+        });
+
+        return response()->json([
+            'message' => 'Carrito vaciado correctamente',
+            'cart_total' => 0
+        ]);
     }
 
 }
