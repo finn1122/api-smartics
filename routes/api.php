@@ -86,7 +86,7 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/items', [CartItemController::class, 'storeGuestCart']);
         Route::put('/items/{item}', [CartItemController::class, 'updateGuestCart']);
-        Route::delete('/items/{item}', [CartItemController::class, 'destroy']);
+        Route::delete('/items/{item}', [CartItemController::class, 'removeItemGuestCart']);
     });
 
     // Rutas públicas para carritos compartidos

@@ -8,6 +8,7 @@ use App\Http\Resources\ShopProductResource;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -211,6 +212,49 @@ class CartItemController extends Controller
             'message' => 'Producto eliminado del carrito',
             'cart_total_items' => $cart->items()->count(),
             'cart_total_price' => $cart->total,
+        ]);
+    }
+
+
+    /**
+     * Remove an item from the guest cart
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $item_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function removeItemGuestCart(Request $request, int $item_id): JsonResponse
+    {
+        Log::info('CartItemController@removeItemGuestCart', [
+            'item_id' => $item_id,
+            'sessionId' => $request->sessionId
+        ]);
+
+        // Validate the request
+        $request->validate([
+            'sessionId' => 'required|string', // This is the session_id field in the database
+        ]);
+
+        // Find the cart by session_id
+        $cart = Cart::where('session_id', $request->sessionId)->first();
+
+        if (!$cart) {
+            return response()->json(['message' => 'Carrito no encontrado.'], 404);
+        }
+
+        // Find and delete the item in the cart using the URL ID
+        $deleted = $cart->items()->where('id', $item_id)->delete();
+
+        if (!$deleted) {
+            return response()->json(['message' => 'Item no encontrado en el carrito.'], 404);
+        }
+
+        // Update the cart timestamp
+        $cart->touch();
+
+        return response()->json([
+            'message' => 'Item eliminado del carrito',
+            'cart_total_price' => $cart->refresh()->total,
         ]);
     }
 }
