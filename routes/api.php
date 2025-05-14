@@ -13,7 +13,7 @@ use App\Http\Controllers\Api\V1\Category\CategoryController;
 use App\Http\Controllers\Api\V1\ShopProduct\ShopProductController;
 use App\Http\Controllers\Api\V1\Cart\CartItemController;
 use App\Http\Controllers\Api\V1\Cart\CartController;
-
+use App\Http\Controllers\Api\V1\Copomex\CopomexController;
 
 Route::get('/', function () {
     return response()->json([
@@ -77,7 +77,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/{cart}/activate', [CartController::class, 'activateCart']);
             Route::post('/{cart}/share', [CartController::class, 'shareCart']);
         });
-
+        // [[ COPOMEX ]]
+        Route::prefix('copomex')->group(function () {
+            Route::post('/sync/{state}', [CopomexController::class, 'syncState']);
+            Route::get('/postal-code/{postalCode}', [CopomexController::class, 'getPostalCodeInfo']);
+        });
     });
 
     // Rutas de carrito para invitados

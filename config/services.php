@@ -34,5 +34,8 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-
+    'copomex' => [
+        'key' => env('COPOMEX_API_KEY'),
+        'use_test_mode' => env('COPOMEX_USE_TEST_MODE', true),
+    ],
 ];
