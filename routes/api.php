@@ -13,7 +13,8 @@ use App\Http\Controllers\Api\V1\Category\CategoryController;
 use App\Http\Controllers\Api\V1\ShopProduct\ShopProductController;
 use App\Http\Controllers\Api\V1\Cart\CartItemController;
 use App\Http\Controllers\Api\V1\Cart\CartController;
-use App\Http\Controllers\Api\V1\Copomex\CopomexController;
+use App\Http\Controllers\Api\V1\DeliveryType\DeliveryTypeController;
+
 
 Route::get('/', function () {
     return response()->json([
@@ -102,5 +103,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/{token}', [CartController::class, 'getSharedCart']);
         Route::post('/{token}/clone', [CartController::class, 'cloneSharedCart']);
     });
+
+    // Metodos de entrega
+    Route::prefix('delivery-methods')->group(function () {
+        Route::get('/', [DeliveryTypeController::class, 'index']);
+        Route::get('/{delivery_id}', [DeliveryTypeController::class, 'show']);
+
+    });
+
 });
 
