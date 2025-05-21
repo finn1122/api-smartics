@@ -13,7 +13,8 @@ class InegiSettlementType extends Model
 
     protected $fillable = [
         'c_tipo_asenta',
-        'd_tipo_asenta'
+        'd_tipo_asenta',
+        'short_name'
     ];
 
     public function postalData(): HasMany

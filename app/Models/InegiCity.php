@@ -29,6 +29,7 @@ class InegiCity extends Model
 
     public function municipality(): BelongsTo
     {
-        return $this->belongsTo(InegiMunicipality::class, ['c_estado', 'c_mnpio'], ['c_estado', 'c_mnpio']);
+        return $this->belongsTo(InegiMunicipality::class, 'c_mnpio', 'c_mnpio')
+            ->whereColumn('inegi_municipalities.c_estado', 'inegi_cities.c_estado');
     }
 }

@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InegiMunicipality extends Model
 {
-    protected $primaryKey = ['c_estado', 'c_mnpio'];
     public $incrementing = false;
 
     protected $fillable = [
@@ -24,6 +23,7 @@ class InegiMunicipality extends Model
 
     public function cities(): HasMany
     {
-        return $this->hasMany(InegiCity::class, ['c_estado', 'c_mnpio'], ['c_estado', 'c_mnpio']);
+        return $this->hasMany(InegiCity::class, 'c_mnpio', 'c_mnpio')
+            ->whereColumn('inegi_cities.c_estado', 'inegi_municipalities.c_estado');
     }
 }
