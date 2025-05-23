@@ -21,6 +21,8 @@ class CartController extends Controller
         // Obtenemos el sessionId de la solicitud, si existe. Si no, usamos el de la sesión actual.
         $sessionId = $request->sessionId ?? session()->getId();
 
+        Log::debug('sessionId: ' . $sessionId);
+
         // Obtenemos el carrito según si el usuario está autenticado o no.
         $cart = Auth::check()
             ? $this->getUserCart()

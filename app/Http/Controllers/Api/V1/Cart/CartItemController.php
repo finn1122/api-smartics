@@ -23,7 +23,7 @@ class CartItemController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function storeGuestCart(Request $request)
+    public function store(Request $request)
     {
         Log::info('CartItemController@store', ['request' => $request->all()]);
 
@@ -109,8 +109,10 @@ class CartItemController extends Controller
      */
     private function getOrCreateActiveCart($sessionId = null)
     {
+        Log::info('getOrCreateActiveCart');
         // Si existe un token, asociamos el carrito al usuario autenticado
-        if (auth()->check()) {
+        if (Auth::check()) {
+            Log::debug('el usuario esta logueado se debe crear un carrito con el id del usuario');
             return auth()->user()->cart ?: auth()->user()->cart()->create();
         }
 
@@ -118,9 +120,6 @@ class CartItemController extends Controller
         if ($sessionId) {
             return Cart::firstOrCreate(['session_id' => $sessionId]);
         }
-
-        // Si no hay sessionId y no hay usuario autenticado, se crea un carrito temporal
-        return Cart::create(['session_id' => $sessionId ?? (string) \Str::uuid()]);
     }
     /**
      * Actualiza la cantidad de un producto en el carrito

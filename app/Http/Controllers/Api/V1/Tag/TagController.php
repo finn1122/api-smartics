@@ -31,7 +31,6 @@ class TagController extends Controller
                 // Filtrar productos con bestPrice válido
                 $validProducts = $tag->products->filter(function ($product) {
                     $bestSupplierResponse = $this->shopProductController->getBestPriceData($product->id);
-                    Log::debug($bestSupplierResponse);
 
                     if (!$bestSupplierResponse) {
                         return false;

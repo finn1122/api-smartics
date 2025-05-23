@@ -23,8 +23,6 @@ class ShopProductController extends Controller
      */
     public function getBestPriceData($productId): ?JsonResponse
     {
-        Log::info('getBestPriceData: ' . $productId);
-
         // Buscar el producto por su ID
         $product = Product::find($productId);
 

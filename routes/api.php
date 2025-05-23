@@ -68,7 +68,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [UserController::class, 'getUserById']);
         });
 
-        Route::prefix('cart')->middleware(HandleCart::class)->group(function () {
+        /*Route::prefix('cart')->middleware(HandleCart::class)->group(function () {
             Route::post('/items', [CartItemController::class, 'store']);
             Route::put('/items/{item}', [CartItemController::class, 'update']);
             Route::delete('/items/{item}', [CartItemController::class, 'destroy']);
@@ -77,7 +77,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/save', [CartController::class, 'saveCart']);
             Route::post('/{cart}/activate', [CartController::class, 'activateCart']);
             Route::post('/{cart}/share', [CartController::class, 'shareCart']);
-        });
+        });*/
         // [[ COPOMEX ]]
         Route::prefix('copomex')->group(function () {
             Route::post('/sync/{state}', [CopomexController::class, 'syncState']);
@@ -85,14 +85,14 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // Rutas de carrito para invitados
-    Route::prefix('guest-cart')->middleware(HandleCart::class)->group(function () {
+    // Rutas de carrito para invitados y usuarios logueados
+    Route::prefix('cart')->middleware(HandleCart::class)->group(function () {
         Route::get('/', [CartController::class, 'getActiveCart']);
         Route::delete('/clear', [CartController::class, 'clearGuestCart']);
 
         // Item-level operations
         Route::prefix('items')->group(function () {
-            Route::post('/', [CartItemController::class, 'storeGuestCart']);
+            Route::post('/', [CartItemController::class, 'store']);
             Route::put('/{item}', [CartItemController::class, 'updateGuestCart']);
             Route::delete('/{item}', [CartItemController::class, 'removeItemGuestCart']);
         });
