@@ -222,38 +222,60 @@ class CartItemController extends Controller
      * @param  int  $item_id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function removeItemGuestCart(Request $request, int $item_id): JsonResponse
+    public function removeItem(Request $request, int $item_id): JsonResponse
     {
-        Log::info('CartItemController@removeItemGuestCart', [
+        Log::info('CartItemController@removeItem', [
             'item_id' => $item_id,
-            'sessionId' => $request->sessionId
+            'session_id' => $request->header('X-Session-ID'),
+            'user_id' => Auth::check() ? Auth::id() : null
         ]);
 
-        // Validate the request
-        $request->validate([
-            'sessionId' => 'required|string', // This is the session_id field in the database
-        ]);
+        return DB::transaction(function () use ($request, $item_id) {
+            // Obtener el carrito adecuado según autenticación
+            $cart = $this->resolveCart($request);
 
-        // Find the cart by session_id
-        $cart = Cart::where('session_id', $request->sessionId)->first();
+            if (!$cart) {
+                return response()->json(['message' => 'Carrito no encontrado'], 404);
+            }
 
-        if (!$cart) {
-            return response()->json(['message' => 'Carrito no encontrado.'], 404);
+            // Eliminar el item específico
+            $deleted = $cart->items()->where('id', $item_id)->delete();
+
+            if (!$deleted) {
+                return response()->json(['message' => 'Item no encontrado en el carrito'], 404);
+            }
+
+            // Actualizar carrito
+            $cart->touch();
+
+            return response()->json([
+                'message' => 'Item eliminado correctamente',
+                'cart_total' => $cart->refresh()->total,
+                'remaining_items' => $cart->items()->count()
+            ]);
+        });
+    }
+
+    protected function resolveCart(Request $request): ?Cart
+    {
+        // Prioridad 1: Usuario autenticado
+        if (Auth::check()) {
+            return Auth::user()->cart()->firstOrCreate(
+                ['is_active' => true],
+                ['uuid' => Str::uuid(), 'expires_at' => now()->addDays(30)]
+            );
         }
 
-        // Find and delete the item in the cart using the URL ID
-        $deleted = $cart->items()->where('id', $item_id)->delete();
+        // Prioridad 2: Carrito de invitado (session_id)
+        $sessionId = $request->header('X-Session-ID') ?? $request->input('sessionId');
 
-        if (!$deleted) {
-            return response()->json(['message' => 'Item no encontrado en el carrito.'], 404);
+        if ($sessionId) {
+            return Cart::firstOrCreate(
+                ['session_id' => $sessionId, 'user_id' => null],
+                ['uuid' => Str::uuid(), 'is_active' => true, 'expires_at' => now()->addDays(1)]
+            );
         }
 
-        // Update the cart timestamp
-        $cart->touch();
-
-        return response()->json([
-            'message' => 'Item eliminado del carrito',
-            'cart_total_price' => $cart->refresh()->total,
-        ]);
+        return null;
     }
 }

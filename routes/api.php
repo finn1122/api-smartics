@@ -94,7 +94,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('items')->group(function () {
             Route::post('/', [CartItemController::class, 'store']);
             Route::put('/{item}', [CartItemController::class, 'updateGuestCart']);
-            Route::delete('/{item}', [CartItemController::class, 'removeItemGuestCart']);
+            Route::delete('/{item}', [CartItemController::class, 'removeItem']);
         });
     });
 

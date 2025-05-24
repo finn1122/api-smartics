@@ -66,59 +66,66 @@ class HandleCart
     }
     protected function mergeGuestCart($user, $sessionId)
     {
-        Log::info('HandleCart@mergeGuestCart', [
+        Log::info('HandleCart@mergeGuestCart - Inicio', [
             'user_id' => $user->id,
             'session_id' => $sessionId
         ]);
 
-        // Buscar carrito de invitado con sus items
-        $guestCart = Cart::with('items')
-            ->where('session_id', $sessionId)
-            ->whereNull('user_id')
-            ->where('is_active', true)
-            ->first();
+        try {
+            // Buscar carrito de invitado con sus items
+            $guestCart = Cart::with('items')
+                ->where('session_id', $sessionId)
+                ->whereNull('user_id')
+                ->where('is_active', true)
+                ->first();
 
-        if (!$guestCart) {
-            Log::debug('No se encontró carrito de invitado para migrar');
-            return;
-        }
+            if (!$guestCart) {
+                Log::debug('No se encontró carrito de invitado para migrar - Operación exitosa sin acción');
+                return true; // Indica que el proceso terminó sin errores (aunque no hubo migración)
+            }
 
-        // Obtener o crear carrito de usuario
-        $userCart = $user->cart()->firstOrCreate(
-            ['is_active' => true],
-            [
-                'uuid' => Str::uuid(),
-                'expires_at' => now()->addDays(30),
-                'session_id' => null // Limpiamos el session_id del carrito de usuario
-            ]
-        );
+            DB::transaction(function () use ($user, $guestCart) {
+                // Obtener o crear carrito de usuario
+                $userCart = $user->cart()->firstOrCreate(
+                    ['is_active' => true],
+                    [
+                        'uuid' => Str::uuid(),
+                        'expires_at' => now()->addDays(30),
+                        'session_id' => null
+                    ]
+                );
 
-        Log::debug('Iniciando transferencia de items', [
-            'guest_cart_id' => $guestCart->id,
-            'user_cart_id' => $userCart->id,
-            'items_count' => $guestCart->items->count()
-        ]);
+                Log::debug('Proceso de migración', [
+                    'guest_cart_id' => $guestCart->id,
+                    'user_cart_id' => $userCart->id,
+                    'items_count' => $guestCart->items->count()
+                ]);
 
-        // Transferir items
-        $this->transferCartItems($guestCart, $userCart);
+                // Transferir items si existen
+                if ($guestCart->items->isNotEmpty()) {
+                    $this->transferCartItems($guestCart, $userCart);
+                }
 
-        // Eliminar completamente el carrito de invitado y sus items
-        DB::transaction(function () use ($guestCart) {
-            $guestCart->items()->delete(); // Eliminar todos los items asociados
-            $guestCart->delete(); // Eliminar el carrito
+                // Eliminar carrito de invitado
+                $guestCart->items()->delete();
+                $guestCart->delete();
 
-            Log::info('Carrito de invitado eliminado', [
-                'cart_id' => $guestCart->id,
-                'items_deleted' => $guestCart->items->count()
+                Log::info('Carrito migrado y eliminado', [
+                    'items_transferidos' => $userCart->fresh()->items->count(),
+                    'guest_cart_deleted' => $guestCart->id
+                ]);
+            });
+
+            return true; // Migración exitosa
+
+        } catch (\Exception $e) {
+            Log::error('Error durante la migración del carrito', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-        });
-
-        Log::info('Migración de carrito completada', [
-            'user_id' => $user->id,
-            'items_transferidos' => $userCart->items->count()
-        ]);
+            return false; // Indica que hubo un error
+        }
     }
-
     protected function transferCartItems(Cart $source, Cart $target)
     {
         Log::info('HandleCart@transferCartItems');
