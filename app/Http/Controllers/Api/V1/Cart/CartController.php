@@ -55,31 +55,68 @@ class CartController extends Controller
      * Clear all items from the guest cart
      * DELETE /api/v1/guest-cart/clear?sessionId=xxx
      */
-    public function clearGuestCart(Request $request)
+    /**
+     * Vacía completamente el carrito (para usuarios autenticados e invitados)
+     * DELETE /api/v1/cart/clear
+     */
+    public function clearCart(Request $request): JsonResponse
     {
-        $request->validate([
-            'sessionId' => 'required|string',
+        Log::info('CartController@clearCart', [
+            'user_id' => Auth::check() ? Auth::id() : null,
+            'session_id' => $request->header('X-Session-ID')
         ]);
 
-        Log::info('CartController@clearGuestCart', [
-            'sessionId' => $request->sessionId
-        ]);
+        return DB::transaction(function () use ($request) {
+            // Obtener el carrito adecuado según autenticación
+            $cart = $this->resolveCart($request);
 
-        $cart = Cart::where('session_id', $request->sessionId)->first();
+            if (!$cart) {
+                return response()->json([
+                    'message' => 'Carrito no encontrado',
+                    'hint' => Auth::check() ? 'Intente iniciar sesión nuevamente' : 'Proporcione un sessionId válido'
+                ], 404);
+            }
 
-        if (!$cart) {
-            return response()->json(['message' => 'Carrito no encontrado'], 404);
-        }
-
-        DB::transaction(function () use ($cart) {
-            $cart->items()->delete();
+            // Eliminar todos los items del carrito
+            $itemsDeleted = $cart->items()->delete();
             $cart->touch();
-        });
 
-        return response()->json([
-            'message' => 'Carrito vaciado correctamente',
-            'cart_total' => 0
-        ]);
+            Log::debug('Carrito vaciado', [
+                'cart_id' => $cart->id,
+                'items_deleted' => $itemsDeleted
+            ]);
+
+            return response()->json([
+                'message' => 'Carrito vaciado correctamente',
+                'cart_total' => 0,
+                'items_deleted' => $itemsDeleted
+            ]);
+        });
     }
 
+    /**
+     * Método auxiliar para obtener el carrito correcto
+     */
+    protected function resolveCart(Request $request): ?Cart
+    {
+        // 1. Prioridad a usuario autenticado
+        if (Auth::check()) {
+            return Auth::user()->cart()->firstOrCreate(
+                ['is_active' => true],
+                ['uuid' => Str::uuid(), 'expires_at' => now()->addDays(30)]
+            );
+        }
+
+        // 2. Usuario invitado (por session_id)
+        $sessionId = $request->header('X-Session-ID') ?? $request->input('sessionId');
+
+        if ($sessionId) {
+            return Cart::firstOrCreate(
+                ['session_id' => $sessionId, 'user_id' => null],
+                ['uuid' => Str::uuid(), 'is_active' => true, 'expires_at' => now()->addDays(1)]
+            );
+        }
+
+        return null;
+    }
 }

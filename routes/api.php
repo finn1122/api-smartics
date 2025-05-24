@@ -88,7 +88,7 @@ Route::prefix('v1')->group(function () {
     // Rutas de carrito para invitados y usuarios logueados
     Route::prefix('cart')->middleware(HandleCart::class)->group(function () {
         Route::get('/', [CartController::class, 'getActiveCart']);
-        Route::delete('/clear', [CartController::class, 'clearGuestCart']);
+        Route::delete('/clear', [CartController::class, 'clearCart']);
 
         // Item-level operations
         Route::prefix('items')->group(function () {
